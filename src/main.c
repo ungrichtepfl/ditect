@@ -40,7 +40,7 @@ typedef struct {
 typedef Network_t *Network;
 
 /// Normal random numbers generator - Marsaglia algorithm.
-static FLOAT *randn(size_t n) {
+FLOAT *randn(size_t n) {
   INIT_RAND();
   size_t m = n + n % 2;
   FLOAT *values = (FLOAT *)CALLOC(m, sizeof(values[0]));
@@ -60,6 +60,12 @@ static FLOAT *randn(size_t n) {
     values[i + 1] = y * f;
   }
   return values;
+}
+
+void randno(FLOAT *values, size_t n) {
+  FLOAT *r = randn(n);
+  memcpy(values, r, n * sizeof(values[0]));
+  free(r);
 }
 
 Network network_create(size_t *sizes, size_t num_layers) {
@@ -139,6 +145,22 @@ static inline void sigmoid(FLOAT *z, FLOAT *out, size_t len) {
   }
 }
 
+static inline void sigmoid_prime(FLOAT *z, FLOAT *out, size_t len) {
+  for (size_t i = 0; i < len; ++i) {
+    FLOAT e = exp(-z[i]);
+    out[i] = e / ((1 + e) * (1 + e));
+  }
+}
+
+static inline FLOAT distance(FLOAT *x, FLOAT *y, size_t n) {
+  FLOAT out = 0;
+  for (size_t i = 0; i < n; ++i) {
+    FLOAT diff = (x[i] - y[i]);
+    out += diff * diff;
+  }
+  return out;
+}
+
 static inline void dot_add(FLOAT *W, FLOAT *x, FLOAT *b, FLOAT *out, size_t n,
                            size_t m) {
   for (size_t i = 0; i < n; ++i) {
@@ -167,6 +189,17 @@ void network_feedforward(Network network, FLOAT *input, FLOAT *output) {
   memcpy(output, a, n * sizeof(output[0]));
 }
 
+FLOAT network_cost(Network network, FLOAT **x, FLOAT **a, size_t num_training) {
+
+  FLOAT cost = 0;
+  size_t len_output = network->layer_sizes[network->num_layers - 1];
+  FLOAT *out = alloca(len_output * sizeof(out[0]));
+  for (size_t p = 0; p < num_training; ++p) {
+    network_feedforward(network, x[p], out);
+    cost += distance(out, a[p], len_output);
+  }
+  return 1. / (2. * (FLOAT)num_training) * cost;
+}
 /**/
 /* int main(void) { */
 /**/
@@ -189,6 +222,8 @@ void print_output_layer(FLOAT *out, size_t n) {
   PRINTF("---------------------------------------------------\n");
 }
 
+#define NUM_TRAINING 2
+
 int main(void) {
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
   Network network = network_create(layer_sizes, NUM_LAYERS);
@@ -198,9 +233,23 @@ int main(void) {
   FLOAT out[NUM_OUTPUTS] = {0};
   FLOAT *in = randn(NUM_INPUTS);
 
+  FLOAT **a = alloca(NUM_TRAINING * sizeof(a[0]));
+  for (size_t i = 0; i < NUM_TRAINING; ++i) {
+    a[i] = alloca(NUM_OUTPUTS * sizeof(FLOAT));
+    memset(a[i], 0, NUM_OUTPUTS * sizeof(FLOAT));
+  }
+
+  FLOAT **x = alloca(NUM_TRAINING * sizeof(x[0]));
+  for (size_t i = 0; i < NUM_TRAINING; ++i) {
+    x[i] = in;
+  }
+
   network_feedforward(network, in, &out[0]);
 
   print_output_layer(out, NUM_OUTPUTS);
+
+  FLOAT cost = network_cost(network, x, a, NUM_TRAINING);
+  PRINTF("Cost: %f\n", cost);
 
   network_free(network);
 }
