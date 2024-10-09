@@ -4,7 +4,12 @@ set -xe
 
 mkdir -p ./build
 
-CFLAGS="-Wall -Werror -Wextra -Wpedantic -Ofast -ggdb"
+CFLAGS="-Wall -Werror -Wextra -Wpedantic"
+if [ "$1" = "-r" ]; then
+CFLAGS="$CFLAGS -Ofast"
+else
+CFLAGS="$CFLAGS -O0 -ggdb"
+fi
 LFLAGS="-lm -lpthread"
 CPPFLAGS=""
 if [ "$(uname -m)" = "x86_64" ]; then

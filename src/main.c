@@ -31,16 +31,22 @@ static bool random_init = false;
 #define IDX(i, j, m) ((i) * (m) + (j))
 
 typedef struct {
+  FLOAT **activations;
+  FLOAT **inputs;
+} NetworkResult;
+
+typedef struct {
   size_t num_layers;
   size_t *layer_sizes;
   FLOAT **biases;
   FLOAT **weights;
+  NetworkResult *result;
 } Network_t;
 
 typedef Network_t *Network;
 
 /// Normal random numbers generator - Marsaglia algorithm.
-FLOAT *randn(size_t n) {
+FLOAT *randn(const size_t n) {
   INIT_RAND();
   size_t m = n + n % 2;
   FLOAT *values = (FLOAT *)CALLOC(m, sizeof(values[0]));
@@ -62,17 +68,24 @@ FLOAT *randn(size_t n) {
   return values;
 }
 
-void randno(FLOAT *values, size_t n) {
+void randno(FLOAT *const values, const size_t n) {
   FLOAT *r = randn(n);
-  memcpy(values, r, n * sizeof(values[0]));
+  if (!memcpy(values, r, n * sizeof(values[0]))) {
+    TraceLog(LOG_FATAL, "Could copy random values");
+    EXIT(1);
+  }
   free(r);
 }
 
-Network network_create(size_t *sizes, size_t num_layers) {
+Network network_create(const size_t *const sizes, const size_t num_layers) {
+  if (num_layers < 2) {
+    TraceLog(LOG_FATAL, "Cannot create network. At least 2 layers are needed.");
+    EXIT(1);
+  }
   Network network = MALLOC(sizeof(*network));
   size_t *layer_sizes = MALLOC(num_layers * sizeof(layer_sizes[0]));
-  FLOAT **biases = MALLOC((num_layers - 1) * sizeof(FLOAT));
-  FLOAT **weights = MALLOC((num_layers - 1) * sizeof(FLOAT));
+  FLOAT **biases = MALLOC((num_layers - 1) * sizeof(biases[0]));
+  FLOAT **weights = MALLOC((num_layers - 1) * sizeof(weights[0]));
   if (!network || !layer_sizes || !biases || !weights) {
     TraceLog(LOG_FATAL, "Could not create network, out of memory");
     EXIT(1);
@@ -91,11 +104,26 @@ Network network_create(size_t *sizes, size_t num_layers) {
   network->num_layers = num_layers;
   network->weights = weights;
   network->biases = biases;
+  network->result = NULL;
 
   return network;
 }
 
-void network_free(Network network) {
+void network_free_result(Network network) {
+  if (network->result) {
+    for (size_t l = 0; l < network->num_layers; ++l) {
+      free(network->result->inputs[l]);
+    }
+    for (size_t l = 0; l < network->num_layers; ++l) {
+      free(network->result->activations[l]);
+    }
+    free(network->result);
+    network->result = NULL;
+  }
+}
+
+void network_free(const Network network) {
+  network_free_result(network);
   for (size_t i = 0; i < network->num_layers - 1; ++i) {
     free(network->biases[i]);
     free(network->weights[i]);
@@ -103,10 +131,11 @@ void network_free(Network network) {
   free(network->biases);
   free(network->weights);
   free(network->layer_sizes);
+
   free(network);
 }
 
-void network_print(Network network) {
+void network_print(const Network network) {
 
   PRINTF("Network: \n");
   PRINTF("Number of layers: %zu\n", network->num_layers);
@@ -139,20 +168,29 @@ void network_print(Network network) {
   }
 }
 
-static inline void sigmoid(FLOAT *z, FLOAT *out, size_t len) {
+static inline FLOAT sigmoid_s(const FLOAT z) { return 1 / (1 + exp(-z)); }
+
+static inline void sigmoid(const FLOAT *const z, FLOAT *const out,
+                           const size_t len) {
   for (size_t i = 0; i < len; ++i) {
-    out[i] = 1 / (1 + exp(-z[i]));
+    out[i] = sigmoid_s(z[i]);
   }
 }
 
-static inline void sigmoid_prime(FLOAT *z, FLOAT *out, size_t len) {
+static inline FLOAT sigmoid_prime_s(const FLOAT z) {
+  FLOAT e = exp(-z);
+  return e / ((1 + e) * (1 + e));
+}
+
+static inline void sigmoid_prime(const FLOAT *z, FLOAT *const out,
+                                 const size_t len) {
   for (size_t i = 0; i < len; ++i) {
-    FLOAT e = exp(-z[i]);
-    out[i] = e / ((1 + e) * (1 + e));
+    out[i] = sigmoid_prime_s(z[i]);
   }
 }
 
-static inline FLOAT distance(FLOAT *x, FLOAT *y, size_t n) {
+static inline FLOAT distance(const FLOAT *const x, const FLOAT *const y,
+                             const size_t n) {
   FLOAT out = 0;
   for (size_t i = 0; i < n; ++i) {
     FLOAT diff = (x[i] - y[i]);
@@ -161,8 +199,9 @@ static inline FLOAT distance(FLOAT *x, FLOAT *y, size_t n) {
   return out;
 }
 
-static inline void dot_add(FLOAT *W, FLOAT *x, FLOAT *b, FLOAT *out, size_t n,
-                           size_t m) {
+static inline void dot_add(const FLOAT *const W, const FLOAT *const x,
+                           const FLOAT *const b, FLOAT *const out,
+                           const size_t n, const size_t m) {
   for (size_t i = 0; i < n; ++i) {
     FLOAT tmp = 0;
     for (size_t j = 0; j < m; ++j) {
@@ -172,34 +211,143 @@ static inline void dot_add(FLOAT *W, FLOAT *x, FLOAT *b, FLOAT *out, size_t n,
   }
 }
 
-void network_feedforward(Network network, FLOAT *input, FLOAT *output) {
-  FLOAT *x = input;
-  FLOAT *a = NULL;
-  size_t n = 0;
-  for (size_t l = 0; l < network->num_layers - 1; ++l) {
-    n = network->layer_sizes[l + 1];
-    size_t m = network->layer_sizes[l];
-    a = alloca(network->layer_sizes[l + 1] * sizeof(a[0]));
-    FLOAT *W = network->weights[l];
-    FLOAT *b = network->biases[l];
-    dot_add(W, x, b, a, n, m);
-    sigmoid(a, a, n); // Inplace
-    x = a;
+static void reset_result(Network network) {
+  network_free_result(network);
+  network->result = MALLOC(sizeof(*network->result));
+  if (!network->result) {
+    TraceLog(LOG_FATAL, "Could not create result out of memory");
+    EXIT(1);
   }
-  memcpy(output, a, n * sizeof(output[0]));
+  network->result->inputs =
+      MALLOC(network->num_layers * sizeof(network->result->inputs[0]));
+  if (!network->result->inputs) {
+    TraceLog(LOG_FATAL, "Could not create result out of memory");
+    EXIT(1);
+  }
+  network->result->activations =
+      MALLOC(network->num_layers * sizeof(network->result->activations[0]));
+  if (!network->result->activations) {
+    TraceLog(LOG_FATAL, "Could not create result out of memory");
+    EXIT(1);
+  }
+  for (size_t l = 0; l < network->num_layers; ++l) {
+    network->result->inputs[l] =
+        MALLOC(network->layer_sizes[l] * sizeof(network->result->inputs[l][0]));
+    if (!network->result->inputs[l]) {
+      TraceLog(LOG_FATAL, "Could not create result out of memory");
+      EXIT(1);
+    }
+    network->result->activations[l] = MALLOC(
+        network->layer_sizes[l] * sizeof(network->result->activations[l][0]));
+    if (!network->result->activations[l]) {
+      TraceLog(LOG_FATAL, "Could not create result out of memory");
+      EXIT(1);
+    }
+  }
 }
 
-FLOAT network_cost(Network network, FLOAT **x, FLOAT **a, size_t num_training) {
+void network_feedforward(Network network, const FLOAT *const input) {
+  reset_result(network);
+  if (!memcpy(network->result->inputs[0], input,
+              network->layer_sizes[0] * sizeof(input[0]))) {
+    TraceLog(LOG_FATAL, "Could not copy inputs");
+    EXIT(1);
+  }
+
+  if (!memcpy(network->result->activations[0], input,
+              network->layer_sizes[0] * sizeof(input[0]))) {
+    TraceLog(LOG_FATAL, "Could not copy activations");
+    EXIT(1);
+  }
+  for (size_t l = 0; l < network->num_layers - 1; ++l) {
+    const size_t n = network->layer_sizes[l + 1];
+    const size_t m = network->layer_sizes[l];
+    const FLOAT *const W = network->weights[l];
+    const FLOAT *const b = network->biases[l];
+    dot_add(W, network->result->activations[l], b,
+            network->result->activations[l + 1], n, m);
+    if (!memcpy(network->result->inputs[l + 1],
+                network->result->activations[l + 1],
+                network->layer_sizes[l + 1] *
+                    sizeof(network->result->inputs[l + 1][0]))) {
+      TraceLog(LOG_FATAL, "Could not copy inputs");
+      EXIT(1);
+    }
+    sigmoid(network->result->activations[l + 1],
+            network->result->activations[l + 1], n); // Inplace
+  }
+}
+
+FLOAT network_cost(const Network network, FLOAT *const *const xs,
+                   FLOAT *const *const ys, const size_t num_training) {
 
   FLOAT cost = 0;
   size_t len_output = network->layer_sizes[network->num_layers - 1];
-  FLOAT *out = alloca(len_output * sizeof(out[0]));
   for (size_t p = 0; p < num_training; ++p) {
-    network_feedforward(network, x[p], out);
-    cost += distance(out, a[p], len_output);
+    network_feedforward(network, xs[p]);
+    cost += distance(network->result->activations[network->num_layers - 1],
+                     ys[p], len_output);
   }
   return 1. / (2. * (FLOAT)num_training) * cost;
 }
+
+static inline FLOAT last_cost_error_s(const FLOAT a, const FLOAT y,
+                                      const FLOAT z) {
+  return (a - y) * sigmoid_s(z);
+}
+
+static inline void last_cost_error(const FLOAT *const a, const FLOAT *const y,
+                                   const FLOAT *const z, FLOAT *const error,
+                                   const size_t n) {
+  for (size_t i = 0; i < n; ++i) {
+    error[i] = last_cost_error_s(a[i], y[i], z[i]);
+  }
+}
+
+void network_print_activation_layer(Network network) {
+  if (!network->result) {
+    PRINTF("---------------- NO RESULTS AVAILABLE ----------------\n");
+    return;
+  }
+  PRINTF("---------------- OUTPUT PER NEURON ----------------\n");
+  for (size_t i = 0; i < network->layer_sizes[network->num_layers - 1]; ++i) {
+    PRINTF("%lu => %f \n", i,
+           network->result->activations[network->num_layers - 1][i]);
+  }
+  PRINTF("---------------------------------------------------\n");
+}
+
+#define NUM_TRAINING 2
+
+int main(void) {
+  size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
+  Network network = network_create(layer_sizes, NUM_LAYERS);
+
+  /* network_print(network); */
+
+  FLOAT *x = randn(NUM_INPUTS);
+
+  FLOAT **ys = alloca(NUM_TRAINING * sizeof(ys[0]));
+  for (size_t i = 0; i < NUM_TRAINING; ++i) {
+    ys[i] = alloca(NUM_OUTPUTS * sizeof(FLOAT));
+    memset(ys[i], 0, NUM_OUTPUTS * sizeof(FLOAT));
+  }
+
+  FLOAT **xs = alloca(NUM_TRAINING * sizeof(xs[0]));
+  for (size_t i = 0; i < NUM_TRAINING; ++i) {
+    xs[i] = x;
+  }
+
+  network_feedforward(network, x);
+
+  network_print_activation_layer(network);
+
+  FLOAT cost = network_cost(network, xs, ys, NUM_TRAINING);
+  PRINTF("Cost: %f\n", cost);
+
+  network_free(network);
+}
+
 /**/
 /* int main(void) { */
 /**/
@@ -213,43 +361,3 @@ FLOAT network_cost(Network network, FLOAT **x, FLOAT **a, size_t num_training) {
 /*     EndDrawing(); */
 /*   } */
 /* } */
-
-void print_output_layer(FLOAT *out, size_t n) {
-  PRINTF("---------------- OUTPUT PER NEURON ----------------\n");
-  for (size_t i = 0; i < n; ++i) {
-    PRINTF("%lu => %f \n", i, out[i]);
-  }
-  PRINTF("---------------------------------------------------\n");
-}
-
-#define NUM_TRAINING 2
-
-int main(void) {
-  size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
-  Network network = network_create(layer_sizes, NUM_LAYERS);
-
-  /* network_print(network); */
-
-  FLOAT out[NUM_OUTPUTS] = {0};
-  FLOAT *in = randn(NUM_INPUTS);
-
-  FLOAT **a = alloca(NUM_TRAINING * sizeof(a[0]));
-  for (size_t i = 0; i < NUM_TRAINING; ++i) {
-    a[i] = alloca(NUM_OUTPUTS * sizeof(FLOAT));
-    memset(a[i], 0, NUM_OUTPUTS * sizeof(FLOAT));
-  }
-
-  FLOAT **x = alloca(NUM_TRAINING * sizeof(x[0]));
-  for (size_t i = 0; i < NUM_TRAINING; ++i) {
-    x[i] = in;
-  }
-
-  network_feedforward(network, in, &out[0]);
-
-  print_output_layer(out, NUM_OUTPUTS);
-
-  FLOAT cost = network_cost(network, x, a, NUM_TRAINING);
-  PRINTF("Cost: %f\n", cost);
-
-  network_free(network);
-}
