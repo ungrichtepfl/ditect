@@ -77,7 +77,8 @@ void randno(FLOAT *const values, const size_t n) {
   free(r);
 }
 
-Network network_create(const size_t *const sizes, const size_t num_layers) {
+Network network_create_random(const size_t *const sizes,
+                              const size_t num_layers) {
   if (num_layers < 2) {
     TraceLog(LOG_FATAL, "Cannot create network. At least 2 layers are needed.");
     EXIT(1);
@@ -317,13 +318,53 @@ void network_print_activation_layer(Network network) {
   PRINTF("---------------------------------------------------\n");
 }
 
+typedef struct {
+  FLOAT **errors;
+  Network network;
+} Backprop_t;
+
+typedef Backprop_t *Backprop;
+
+Backprop brackprop_create(const size_t *const sizes, const size_t num_layers) {
+  Network network = network_create_random(sizes, num_layers);
+
+  Backprop backprop = MALLOC(sizeof(*backprop));
+  if (!backprop) {
+    TraceLog(LOG_FATAL, "Could not create backprop. Out of memory.");
+    EXIT(1);
+  }
+  backprop->errors = MALLOC(num_layers * sizeof(backprop->errors[0]));
+  if (!backprop->errors) {
+    TraceLog(LOG_FATAL, "Could not create backprop. Out of memory.");
+    EXIT(1);
+  }
+  for (size_t l = 0; l < num_layers; ++l) {
+    backprop->errors[l] =
+        MALLOC(network->layer_sizes[l] * sizeof(backprop->errors[l][0]));
+    if (!backprop->errors[l]) {
+      TraceLog(LOG_FATAL, "Could not create backprop. Out of memory.");
+      EXIT(1);
+    }
+  }
+  backprop->network = network;
+  return backprop;
+}
+
+void backprop_free(Backprop backprop) {
+  for (size_t l = 0; l < backprop->network->num_layers; ++l) {
+    free(backprop->errors[l]);
+  }
+  free(backprop->errors);
+  network_free(backprop->network);
+}
+
 #define NUM_TRAINING 2
 
 int main(void) {
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
-  Network network = network_create(layer_sizes, NUM_LAYERS);
+  Backprop backprop = brackprop_create(layer_sizes, NUM_LAYERS);
 
-  /* network_print(network); */
+  /* network_print(backprop->network); */
 
   FLOAT *x = randn(NUM_INPUTS);
 
@@ -338,14 +379,14 @@ int main(void) {
     xs[i] = x;
   }
 
-  network_feedforward(network, x);
+  network_feedforward(backprop->network, x);
 
-  network_print_activation_layer(network);
+  network_print_activation_layer(backprop->network);
 
-  FLOAT cost = network_cost(network, xs, ys, NUM_TRAINING);
+  FLOAT cost = network_cost(backprop->network, xs, ys, NUM_TRAINING);
   PRINTF("Cost: %f\n", cost);
 
-  network_free(network);
+  backprop_free(backprop);
 }
 
 /**/
