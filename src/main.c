@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <math.h>
 #include <raylib.h>
 #include <stdbool.h>
@@ -281,7 +282,6 @@ void network_feedforward(Network network, const FLOAT *const input) {
 
 FLOAT network_cost(const Network network, FLOAT *const *const xs,
                    FLOAT *const *const ys, const size_t num_training) {
-
   FLOAT cost = 0;
   size_t len_output = network->layer_sizes[network->num_layers - 1];
   for (size_t p = 0; p < num_training; ++p) {
@@ -290,19 +290,6 @@ FLOAT network_cost(const Network network, FLOAT *const *const xs,
                      ys[p], len_output);
   }
   return 1. / (2. * (FLOAT)num_training) * cost;
-}
-
-static inline FLOAT last_cost_error_s(const FLOAT a, const FLOAT y,
-                                      const FLOAT z) {
-  return (a - y) * sigmoid_s(z);
-}
-
-static inline void last_cost_error(const FLOAT *const a, const FLOAT *const y,
-                                   const FLOAT *const z, FLOAT *const error,
-                                   const size_t n) {
-  for (size_t i = 0; i < n; ++i) {
-    error[i] = last_cost_error_s(a[i], y[i], z[i]);
-  }
 }
 
 void network_print_activation_layer(Network network) {
@@ -358,6 +345,52 @@ void backprop_free(Backprop backprop) {
   network_free(backprop->network);
 }
 
+static inline FLOAT last_output_error_s(const FLOAT a, const FLOAT z,
+                                        const FLOAT y) {
+  return (a - y) * sigmoid_s(z);
+}
+
+static void output_error(Backprop backprop, const FLOAT *const y) {
+  assert(backprop->network->result &&
+         "You need to feedforward the newtwork first");
+  const size_t L = backprop->network->num_layers - 1;
+  size_t m = backprop->network->layer_sizes[L];
+  for (size_t j = 0; j < m; ++j) {
+    backprop->errors[L][j] =
+        last_output_error_s(backprop->network->result->activations[L][j],
+                            backprop->network->result->inputs[L][j], y[j]);
+  }
+
+  for (long long l = L - 1; l >= 0; --l) {
+    const size_t n = backprop->network->layer_sizes[l + 1];
+    size_t m = backprop->network->layer_sizes[l];
+    const FLOAT *const W = backprop->network->weights[l];
+    const FLOAT *const previous_error = backprop->errors[l + 1];
+    const FLOAT *const z = backprop->network->result->inputs[l];
+
+    for (size_t j = 0; j < m; ++j) {
+      backprop->errors[l][j] = 0;
+      for (size_t i = 0; i < n; ++i) {
+        backprop->errors[l][j] += W[IDX(i, j, m)] * previous_error[i];
+      }
+      backprop->errors[l][j] *= sigmoid_prime_s(z[j]);
+    }
+  }
+}
+
+void backprop_learn(Backprop backprop, FLOAT *const *const xs,
+                    FLOAT *const *const ys, size_t num_trainig) {
+  FLOAT cost = network_cost(backprop->network, xs, ys, num_trainig);
+  TraceLog(LOG_INFO, "Start cost of network: %.2f", cost);
+
+  for (size_t d = 0; d < num_trainig; ++d) {
+    const FLOAT *const x = xs[d];
+    const FLOAT *const y = ys[d];
+    network_feedforward(backprop->network, x);
+    output_error(backprop, y);
+  }
+}
+
 #define NUM_TRAINING 2
 
 int main(void) {
@@ -379,12 +412,9 @@ int main(void) {
     xs[i] = x;
   }
 
-  network_feedforward(backprop->network, x);
+  backprop_learn(backprop, xs, ys, NUM_TRAINING);
 
   network_print_activation_layer(backprop->network);
-
-  FLOAT cost = network_cost(backprop->network, xs, ys, NUM_TRAINING);
-  PRINTF("Cost: %f\n", cost);
 
   backprop_free(backprop);
 }
