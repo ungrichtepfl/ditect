@@ -54,9 +54,13 @@ DS_Backprop *DS_brackprop_create(const size_t *const sizes,
 void DS_backprop_free(DS_Backprop *const backprop);
 
 void DS_backprop_learn_once(DS_Backprop *const backprop, FLOAT *const *const xs,
-                            FLOAT *const *const ys, const size_t num_trainig,
+                            FLOAT *const *const ys, const size_t num_training,
                             const FLOAT learing_rate);
 
 DS_Network const *DS_backprop_network(const DS_Backprop *const backprop);
+
+FLOAT DS_backprop_network_cost(DS_Backprop *const backprop,
+                               FLOAT *const *const xs, FLOAT *const *const ys,
+                               const size_t num_training);
 
 #endif // DEEPSEE_H

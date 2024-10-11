@@ -17,7 +17,7 @@
 
 int main(void) {
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
-  FLOAT learing_rate = 1.;
+  FLOAT learing_rate = 0.01;
   DS_Backprop *backprop = DS_brackprop_create(layer_sizes, NUM_LAYERS);
 
   /* DS_network_print(DS_backprop_network(backprop)); */
@@ -35,7 +35,12 @@ int main(void) {
     xs[i] = x;
   }
 
-  DS_backprop_learn_once(backprop, xs, ys, NUM_TRAINING, learing_rate);
+  FLOAT cost = DS_backprop_network_cost(backprop, xs, ys, NUM_TRAINING);
+  PRINTF("Cost of network BEFORE learning: %.2f\n", cost);
+  for (int i = 0; i < 1000; ++i)
+    DS_backprop_learn_once(backprop, xs, ys, NUM_TRAINING, learing_rate);
+  cost = DS_backprop_network_cost(backprop, xs, ys, NUM_TRAINING);
+  PRINTF("cost of network AFTER learing: %.2f\n", cost);
 
   DS_network_print_activation_layer(DS_backprop_network(backprop));
 

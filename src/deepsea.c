@@ -204,13 +204,6 @@ static inline FLOAT sigmoid_prime_s(const FLOAT z) {
   return e / ((1 + e) * (1 + e));
 }
 
-static inline void sigmoid_prime(const FLOAT *z, FLOAT *const out,
-                                 const size_t len) {
-  for (size_t i = 0; i < len; ++i) {
-    out[i] = sigmoid_prime_s(z[i]);
-  }
-}
-
 static inline FLOAT distance(const FLOAT *const x, const FLOAT *const y,
                              const size_t n) {
   FLOAT out = 0;
@@ -398,7 +391,7 @@ static void calculate_output_error(DS_Backprop *const backprop,
 
 static void calculate_error_sums(DS_Backprop *const backprop,
                                  FLOAT *const *const xs, FLOAT *const *const ys,
-                                 size_t num_trainig) {
+                                 size_t num_training) {
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     const size_t n = backprop->network->layer_sizes[l + 1];
@@ -409,7 +402,7 @@ static void calculate_error_sums(DS_Backprop *const backprop,
            m * n * sizeof(backprop->weight_error_sums[l][0]));
   }
 
-  for (size_t d = 0; d < num_trainig; ++d) {
+  for (size_t d = 0; d < num_training; ++d) {
     const FLOAT *const x = xs[d];
     const FLOAT *const y = ys[d];
     DS_network_feedforward(backprop->network, x);
@@ -451,18 +444,18 @@ static void update_weights_and_biases(DS_Backprop *const backprop,
 }
 
 void DS_backprop_learn_once(DS_Backprop *const backprop, FLOAT *const *const xs,
-                            FLOAT *const *const ys, const size_t num_trainig,
+                            FLOAT *const *const ys, const size_t num_training,
                             const FLOAT learing_rate) {
-  FLOAT cost = DS_network_cost(backprop->network, xs, ys, num_trainig);
-  FPRINTF(stderr, "Cost of network BEFORE learning: %.2f\n", cost);
+  calculate_error_sums(backprop, xs, ys, num_training);
 
-  calculate_error_sums(backprop, xs, ys, num_trainig);
-
-  const FLOAT rate = learing_rate / (FLOAT)num_trainig;
+  const FLOAT rate = learing_rate / (FLOAT)num_training;
   update_weights_and_biases(backprop, rate);
+}
 
-  cost = DS_network_cost(backprop->network, xs, ys, num_trainig);
-  FPRINTF(stderr, "cost of network AFTER learing: %.2f\n", cost);
+FLOAT DS_backprop_network_cost(DS_Backprop *const backprop,
+                               FLOAT *const *const xs, FLOAT *const *const ys,
+                               const size_t num_training) {
+  return DS_network_cost(backprop->network, xs, ys, num_training);
 }
 
 DS_Network const *DS_backprop_network(const DS_Backprop *const backprop) {
