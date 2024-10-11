@@ -1,6 +1,7 @@
 SRC_DIR := ./src
 INC_DIR := ./src
 LIB_DIR := ./lib
+TEST_DIR := ./tests
 
 RELEASE := 0
 
@@ -14,6 +15,8 @@ EXCLUDE  := $(_EXCLUDE:%=$(SRC_DIR)/%) # Prepending SRC_DIR path
 EXE := $(BIN_DIR)/ditect
 SRC := $(filter-out $(EXCLUDE), $(wildcard $(SRC_DIR)/*.c))
 OBJ := $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+TESTS := $(wildcard $(TEST_DIR)/*.c)
+TEST_EXE := $(TESTS:$(TEST_DIR)/%.c=$(BIN_DIR)/%)
 
 # If RELEASE var is set to 1
 ifeq ($(RELEASE),1)
@@ -22,7 +25,7 @@ else
 	OPTFLAG := -O0 -ggdb
 endif
 
-ifeq ($(shell uname -m),x86_64 )
+ifeq ("$(shell uname -m)","x86_64")
 	RAYLIB=-I ./raylib-5.0_linux_amd64/include/ -L./raylib-5.0_linux_amd64/lib -l:libraylib.a -ldl
 else
 	RAYLIB=$(shell pkg-config --libs --cflags "raylib")
@@ -31,7 +34,6 @@ endif
 CPPFLAGS := -I$(INC_DIR) -MMD -MP
 CFLAGS   := -Wall -Werror -Wextra -Wpedantic $(OPTFLAG)
 LDFLAGS  := -L$(LIB_DIR) $(OPTFLAG)
-SDL2LIB  := `sdl2-config --cflags --libs` -lSDL2_ttf
 LDLIBS   := -lm $(RAYLIB)
 
 define DEPENDABLE_VAR
@@ -76,5 +78,18 @@ COMPILE_DB := compile_flags.txt
 .PHONY: compiledb
 compiledb:
 	compiledb make
+
+$(BIN_DIR)/%: $(TEST_DIR)/%.c $(BUILD_DIR)/RELEASE | $(BIN_DIR)
+	@echo "Compiling tests..."
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
+
+.PHONY: tests
+tests: $(TEST_EXE)
+
+.PHONY: run-tests
+run-tests: tests
+	@for exe in "$(TEST_EXE)"; do \
+		./$$exe; \
+	done
 
 -include $(OBJ:.o=.d)
