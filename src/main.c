@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <math.h>
 #include <raylib.h>
 #include <stdbool.h>
@@ -78,6 +77,39 @@ void randno(FLOAT *const values, const size_t n) {
   free(r);
 }
 
+static NetworkResult *create_empty_result(const size_t num_layers,
+                                          const size_t *const layer_sizes) {
+  NetworkResult *result = MALLOC(sizeof(*result));
+  if (!result) {
+    TraceLog(LOG_FATAL, "Could not create result out of memory");
+    EXIT(1);
+  }
+  result->inputs = MALLOC(num_layers * sizeof(result->inputs[0]));
+  if (!result->inputs) {
+    TraceLog(LOG_FATAL, "Could not create result out of memory");
+    EXIT(1);
+  }
+  result->activations = MALLOC(num_layers * sizeof(result->activations[0]));
+  if (!result->activations) {
+    TraceLog(LOG_FATAL, "Could not create result out of memory");
+    EXIT(1);
+  }
+  for (size_t l = 0; l < num_layers; ++l) {
+    result->inputs[l] = CALLOC(layer_sizes[l], sizeof(result->inputs[l][0]));
+    if (!result->inputs[l]) {
+      TraceLog(LOG_FATAL, "Could not create result out of memory");
+      EXIT(1);
+    }
+    result->activations[l] =
+        CALLOC(layer_sizes[l], sizeof(result->activations[l][0]));
+    if (!result->activations[l]) {
+      TraceLog(LOG_FATAL, "Could not create result out of memory");
+      EXIT(1);
+    }
+  }
+  return result;
+}
+
 Network network_create_random(const size_t *const sizes,
                               const size_t num_layers) {
   if (num_layers < 2) {
@@ -106,28 +138,25 @@ Network network_create_random(const size_t *const sizes,
   network->num_layers = num_layers;
   network->weights = weights;
   network->biases = biases;
-  network->result = NULL;
+  network->result = create_empty_result(num_layers, sizes);
 
   return network;
 }
 
-void network_free_result(Network network) {
-  if (network->result) {
-    for (size_t l = 0; l < network->num_layers; ++l) {
-      free(network->result->inputs[l]);
-    }
-    for (size_t l = 0; l < network->num_layers; ++l) {
-      free(network->result->activations[l]);
-    }
-    free(network->result->inputs);
-    free(network->result->activations);
-    free(network->result);
-    network->result = NULL;
+void network_result_free(NetworkResult *result, const size_t num_layers) {
+  for (size_t l = 0; l < num_layers; ++l) {
+    free(result->inputs[l]);
   }
+  for (size_t l = 0; l < num_layers; ++l) {
+    free(result->activations[l]);
+  }
+  free(result->inputs);
+  free(result->activations);
+  free(result);
 }
 
-void network_free(const Network network) {
-  network_free_result(network);
+void network_free(Network network) {
+  network_result_free(network->result, network->num_layers);
   for (size_t i = 0; i < network->num_layers - 1; ++i) {
     free(network->biases[i]);
     free(network->weights[i]);
@@ -215,43 +244,7 @@ static inline void dot_add(const FLOAT *const W, const FLOAT *const x,
   }
 }
 
-static void reset_result(Network network) {
-  network_free_result(network);
-  network->result = MALLOC(sizeof(*network->result));
-  if (!network->result) {
-    TraceLog(LOG_FATAL, "Could not create result out of memory");
-    EXIT(1);
-  }
-  network->result->inputs =
-      MALLOC(network->num_layers * sizeof(network->result->inputs[0]));
-  if (!network->result->inputs) {
-    TraceLog(LOG_FATAL, "Could not create result out of memory");
-    EXIT(1);
-  }
-  network->result->activations =
-      MALLOC(network->num_layers * sizeof(network->result->activations[0]));
-  if (!network->result->activations) {
-    TraceLog(LOG_FATAL, "Could not create result out of memory");
-    EXIT(1);
-  }
-  for (size_t l = 0; l < network->num_layers; ++l) {
-    network->result->inputs[l] =
-        MALLOC(network->layer_sizes[l] * sizeof(network->result->inputs[l][0]));
-    if (!network->result->inputs[l]) {
-      TraceLog(LOG_FATAL, "Could not create result out of memory");
-      EXIT(1);
-    }
-    network->result->activations[l] = MALLOC(
-        network->layer_sizes[l] * sizeof(network->result->activations[l][0]));
-    if (!network->result->activations[l]) {
-      TraceLog(LOG_FATAL, "Could not create result out of memory");
-      EXIT(1);
-    }
-  }
-}
-
 void network_feedforward(Network network, const FLOAT *const input) {
-  reset_result(network);
   if (!memcpy(network->result->inputs[0], input,
               network->layer_sizes[0] * sizeof(input[0]))) {
     TraceLog(LOG_FATAL, "Could not copy inputs");
@@ -295,10 +288,6 @@ FLOAT network_cost(const Network network, FLOAT *const *const xs,
 }
 
 void network_print_activation_layer(Network network) {
-  if (!network->result) {
-    PRINTF("---------------- NO RESULTS AVAILABLE ----------------\n");
-    return;
-  }
   PRINTF("---------------- OUTPUT PER NEURON ----------------\n");
   for (size_t i = 0; i < network->layer_sizes[network->num_layers - 1]; ++i) {
     PRINTF("%lu => %f \n", i,
@@ -393,8 +382,6 @@ static inline FLOAT last_output_error_s(const FLOAT a, const FLOAT z,
 }
 
 static void output_error(Backprop backprop, const FLOAT *const y) {
-  assert(backprop->network->result &&
-         "You need to feedforward the newtwork first");
   const size_t L = backprop->network->num_layers - 1;
   size_t n = backprop->network->layer_sizes[L];
   for (size_t i = 0; i < n; ++i) {
