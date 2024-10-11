@@ -301,13 +301,11 @@ typedef struct {
   FLOAT **weight_error_sums;
   FLOAT **bias_error_sums;
   Network network;
-  FLOAT learing_rate;
 } Backprop_t;
 
 typedef Backprop_t *Backprop;
 
-Backprop brackprop_create(const size_t *const sizes, const size_t num_layers,
-                          const FLOAT learing_rate) {
+Backprop brackprop_create(const size_t *const sizes, const size_t num_layers) {
   Network network = network_create_random(sizes, num_layers);
 
   Backprop backprop = MALLOC(sizeof(*backprop));
@@ -357,7 +355,6 @@ Backprop brackprop_create(const size_t *const sizes, const size_t num_layers,
     }
   }
   backprop->network = network;
-  backprop->learing_rate = learing_rate;
   return backprop;
 }
 
@@ -442,18 +439,39 @@ static void calculate_error_sums(Backprop backprop, FLOAT *const *const xs,
 }
 
 void backprop_learn(Backprop backprop, FLOAT *const *const xs,
-                    FLOAT *const *const ys, size_t num_trainig) {
+                    FLOAT *const *const ys, const size_t num_trainig,
+                    const FLOAT learing_rate) {
   FLOAT cost = network_cost(backprop->network, xs, ys, num_trainig);
-  TraceLog(LOG_INFO, "Start cost of network: %.2f", cost);
+  TraceLog(LOG_INFO, "Cost of network BEFORE learning: %.2f", cost);
+
   calculate_error_sums(backprop, xs, ys, num_trainig);
+  const FLOAT rate = learing_rate / (FLOAT)num_trainig;
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    const size_t n = backprop->network->layer_sizes[l + 1];
+    const size_t m = backprop->network->layer_sizes[l];
+    FLOAT *const W = backprop->network->weights[l];
+    FLOAT *const b = backprop->network->biases[l];
+    FLOAT *const weight_update = backprop->weight_error_sums[l];
+    FLOAT *const bias_update = backprop->bias_error_sums[l];
+
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < m; ++j) {
+        W[IDX(i, j, m)] -= rate * weight_update[IDX(i, j, m)];
+      }
+      b[i] -= rate * bias_update[i];
+    }
+  }
+
+  cost = network_cost(backprop->network, xs, ys, num_trainig);
+  TraceLog(LOG_INFO, "cost of network AFTER learing: %.2f", cost);
 }
 
 #define NUM_TRAINING 2
 
 int main(void) {
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
-  FLOAT learing_rate = 0.01;
-  Backprop backprop = brackprop_create(layer_sizes, NUM_LAYERS, learing_rate);
+  FLOAT learing_rate = 1.;
+  Backprop backprop = brackprop_create(layer_sizes, NUM_LAYERS);
 
   /* network_print(backprop->network); */
 
@@ -470,7 +488,7 @@ int main(void) {
     xs[i] = x;
   }
 
-  backprop_learn(backprop, xs, ys, NUM_TRAINING);
+  backprop_learn(backprop, xs, ys, NUM_TRAINING, learing_rate);
 
   network_print_activation_layer(backprop->network);
 
