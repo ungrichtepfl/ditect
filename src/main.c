@@ -119,6 +119,8 @@ void network_free_result(Network network) {
     for (size_t l = 0; l < network->num_layers; ++l) {
       free(network->result->activations[l]);
     }
+    free(network->result->inputs);
+    free(network->result->activations);
     free(network->result);
     network->result = NULL;
   }
@@ -307,12 +309,16 @@ void network_print_activation_layer(Network network) {
 
 typedef struct {
   FLOAT **errors;
+  FLOAT **weight_updates;
+  FLOAT **bias_updates;
   Network network;
+  FLOAT learing_rate;
 } Backprop_t;
 
 typedef Backprop_t *Backprop;
 
-Backprop brackprop_create(const size_t *const sizes, const size_t num_layers) {
+Backprop brackprop_create(const size_t *const sizes, const size_t num_layers,
+                          const FLOAT learing_rate) {
   Network network = network_create_random(sizes, num_layers);
 
   Backprop backprop = MALLOC(sizeof(*backprop));
@@ -325,6 +331,19 @@ Backprop brackprop_create(const size_t *const sizes, const size_t num_layers) {
     TraceLog(LOG_FATAL, "Could not create backprop. Out of memory.");
     EXIT(1);
   }
+  backprop->weight_updates =
+      MALLOC((num_layers - 1) * sizeof(backprop->weight_updates[0]));
+  if (!backprop->weight_updates) {
+    TraceLog(LOG_FATAL, "Could not create backprop. Out of memory.");
+    EXIT(1);
+  }
+  backprop->bias_updates =
+      MALLOC((num_layers - 1) * sizeof(backprop->bias_updates[0]));
+  if (!backprop->bias_updates) {
+    TraceLog(LOG_FATAL, "Could not create backprop. Out of memory.");
+    EXIT(1);
+  }
+
   for (size_t l = 0; l < num_layers; ++l) {
     backprop->errors[l] =
         MALLOC(network->layer_sizes[l] * sizeof(backprop->errors[l][0]));
@@ -333,7 +352,23 @@ Backprop brackprop_create(const size_t *const sizes, const size_t num_layers) {
       EXIT(1);
     }
   }
+  for (size_t l = 0; l < num_layers - 1; ++l) {
+    backprop->bias_updates[l] = MALLOC(network->layer_sizes[l + 1] *
+                                       sizeof(backprop->bias_updates[l][0]));
+    if (!backprop->bias_updates[l]) {
+      TraceLog(LOG_FATAL, "Could not create backprop. Out of memory.");
+      EXIT(1);
+    }
+    backprop->weight_updates[l] =
+        MALLOC(network->layer_sizes[l] * network->layer_sizes[l + 1] *
+               sizeof(backprop->weight_updates[l][0]));
+    if (!backprop->weight_updates[l]) {
+      TraceLog(LOG_FATAL, "Could not create backprop. Out of memory.");
+      EXIT(1);
+    }
+  }
   backprop->network = network;
+  backprop->learing_rate = learing_rate;
   return backprop;
 }
 
@@ -341,8 +376,15 @@ void backprop_free(Backprop backprop) {
   for (size_t l = 0; l < backprop->network->num_layers; ++l) {
     free(backprop->errors[l]);
   }
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    free(backprop->bias_updates[l]);
+    free(backprop->weight_updates[l]);
+  }
   free(backprop->errors);
+  free(backprop->bias_updates);
+  free(backprop->weight_updates);
   network_free(backprop->network);
+  free(backprop);
 }
 
 static inline FLOAT last_output_error_s(const FLOAT a, const FLOAT z,
@@ -354,16 +396,16 @@ static void output_error(Backprop backprop, const FLOAT *const y) {
   assert(backprop->network->result &&
          "You need to feedforward the newtwork first");
   const size_t L = backprop->network->num_layers - 1;
-  size_t m = backprop->network->layer_sizes[L];
-  for (size_t j = 0; j < m; ++j) {
-    backprop->errors[L][j] =
-        last_output_error_s(backprop->network->result->activations[L][j],
-                            backprop->network->result->inputs[L][j], y[j]);
+  size_t n = backprop->network->layer_sizes[L];
+  for (size_t i = 0; i < n; ++i) {
+    backprop->errors[L][i] =
+        last_output_error_s(backprop->network->result->activations[L][i],
+                            backprop->network->result->inputs[L][i], y[i]);
   }
 
   for (long long l = L - 1; l >= 0; --l) {
-    const size_t n = backprop->network->layer_sizes[l + 1];
-    size_t m = backprop->network->layer_sizes[l];
+    n = backprop->network->layer_sizes[l + 1];
+    const size_t m = backprop->network->layer_sizes[l];
     const FLOAT *const W = backprop->network->weights[l];
     const FLOAT *const previous_error = backprop->errors[l + 1];
     const FLOAT *const z = backprop->network->result->inputs[l];
@@ -383,11 +425,36 @@ void backprop_learn(Backprop backprop, FLOAT *const *const xs,
   FLOAT cost = network_cost(backprop->network, xs, ys, num_trainig);
   TraceLog(LOG_INFO, "Start cost of network: %.2f", cost);
 
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    const size_t n = backprop->network->layer_sizes[l + 1];
+    const size_t m = backprop->network->layer_sizes[l];
+    memset(backprop->bias_updates[l], 0,
+           n * sizeof(backprop->bias_updates[l][0]));
+    memset(backprop->weight_updates[l], 0,
+           m * n * sizeof(backprop->weight_updates[l][0]));
+  }
+
   for (size_t d = 0; d < num_trainig; ++d) {
     const FLOAT *const x = xs[d];
     const FLOAT *const y = ys[d];
     network_feedforward(backprop->network, x);
     output_error(backprop, y);
+    for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+      const size_t n = backprop->network->layer_sizes[l + 1];
+      const size_t m = backprop->network->layer_sizes[l];
+      const FLOAT *const a = backprop->network->result->activations[l];
+      for (size_t i = 0; i < n; ++i) {
+        backprop->bias_updates[l][i] +=
+            backprop->learing_rate / num_trainig * backprop->errors[l][i];
+      }
+      for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < m; ++j) {
+          backprop->weight_updates[l][IDX(i, j, m)] += backprop->learing_rate /
+                                                       num_trainig * a[j] *
+                                                       backprop->errors[l][i];
+        }
+      }
+    }
   }
 }
 
@@ -395,7 +462,8 @@ void backprop_learn(Backprop backprop, FLOAT *const *const xs,
 
 int main(void) {
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
-  Backprop backprop = brackprop_create(layer_sizes, NUM_LAYERS);
+  FLOAT learing_rate = 0.01;
+  Backprop backprop = brackprop_create(layer_sizes, NUM_LAYERS, learing_rate);
 
   /* network_print(backprop->network); */
 
@@ -417,6 +485,7 @@ int main(void) {
   network_print_activation_layer(backprop->network);
 
   backprop_free(backprop);
+  free(x);
 }
 
 /**/
