@@ -2,6 +2,7 @@ SRC_DIR := src
 INC_DIR := src
 LIB_DIR := lib
 
+RELEASE := 0
 
 BUILD_DIR := build
 OBJ_DIR := $(BUILD_DIR)/obj
@@ -14,7 +15,7 @@ EXE := $(BIN_DIR)/ditect
 SRC := $(filter-out $(EXCLUDE), $(wildcard $(SRC_DIR)/*.c))
 OBJ := $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
-# If RELEASE environment var is set to 1
+# If RELEASE var is set to 1
 ifeq ($(RELEASE),1)
 	OPTFLAG := -Ofast
 else
@@ -33,9 +34,20 @@ LDFLAGS  := -L$(LIB_DIR) $(OPTFLAG)
 SDL2LIB  := `sdl2-config --cflags --libs` -lSDL2_ttf
 LDLIBS   := -lm $(RAYLIB)
 
+define DEPENDABLE_VAR
+.PHONY: phony
+$(BUILD_DIR)/$1: phony
+	@if [ "$(shell cat $(BUILD_DIR)/$1 2>&1)" != "$($1)" ]; then \
+		echo -n $($1) > $(BUILD_DIR)/$1 ; \
+	fi
+endef
+
 .PHONY: all
 all: $(EXE)
 	@echo 'Run "$^" to start game.'
+
+# Make RELEASE depedable
+$(eval $(call DEPENDABLE_VAR,RELEASE))
 
 .PHONY: run
 run: $(EXE)
@@ -51,7 +63,7 @@ $(EXE): $(OBJ) | $(BIN_DIR)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Compiling:
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(BUILD_DIR)/RELEASE | $(OBJ_DIR)
 	@echo "Compiling..."
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
