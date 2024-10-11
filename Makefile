@@ -93,3 +93,4 @@ run-tests: tests
 	done
 
 -include $(OBJ:.o=.d)
+-include $(TEST_EXE:=.d)
