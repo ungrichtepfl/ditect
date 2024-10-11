@@ -438,14 +438,7 @@ static void calculate_error_sums(Backprop backprop, FLOAT *const *const xs,
   }
 }
 
-void backprop_learn(Backprop backprop, FLOAT *const *const xs,
-                    FLOAT *const *const ys, const size_t num_trainig,
-                    const FLOAT learing_rate) {
-  FLOAT cost = network_cost(backprop->network, xs, ys, num_trainig);
-  TraceLog(LOG_INFO, "Cost of network BEFORE learning: %.2f", cost);
-
-  calculate_error_sums(backprop, xs, ys, num_trainig);
-  const FLOAT rate = learing_rate / (FLOAT)num_trainig;
+void update_weights_and_biases(Backprop backprop, const FLOAT rate) {
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     const size_t n = backprop->network->layer_sizes[l + 1];
     const size_t m = backprop->network->layer_sizes[l];
@@ -461,6 +454,18 @@ void backprop_learn(Backprop backprop, FLOAT *const *const xs,
       b[i] -= rate * bias_update[i];
     }
   }
+}
+
+void backprop_learn(Backprop backprop, FLOAT *const *const xs,
+                    FLOAT *const *const ys, const size_t num_trainig,
+                    const FLOAT learing_rate) {
+  FLOAT cost = network_cost(backprop->network, xs, ys, num_trainig);
+  TraceLog(LOG_INFO, "Cost of network BEFORE learning: %.2f", cost);
+
+  calculate_error_sums(backprop, xs, ys, num_trainig);
+
+  const FLOAT rate = learing_rate / (FLOAT)num_trainig;
+  update_weights_and_biases(backprop, rate);
 
   cost = network_cost(backprop->network, xs, ys, num_trainig);
   TraceLog(LOG_INFO, "cost of network AFTER learing: %.2f", cost);
