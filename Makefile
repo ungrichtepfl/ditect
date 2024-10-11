@@ -1,10 +1,10 @@
-SRC_DIR := src
-INC_DIR := src
-LIB_DIR := lib
+SRC_DIR := ./src
+INC_DIR := ./src
+LIB_DIR := ./lib
 
 RELEASE := 0
 
-BUILD_DIR := build
+BUILD_DIR := ./build
 OBJ_DIR := $(BUILD_DIR)/obj
 BIN_DIR := $(BUILD_DIR)/bin
 
@@ -70,5 +70,11 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(BUILD_DIR)/RELEASE | $(OBJ_DIR)
 # Creat dirs:
 $(BIN_DIR) $(OBJ_DIR) $(BUILD_DIR):
 	mkdir -p $@
+
+COMPILE_DB := compile_flags.txt
+
+.PHONY: compiledb
+compiledb:
+	compiledb make
 
 -include $(OBJ:.o=.d)

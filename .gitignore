@@ -1,4 +1,7 @@
 *.mp3
 *.wav
+*.png
 build/
 src/HandmadeMath.h
+compile_commands.json
+.cache/
