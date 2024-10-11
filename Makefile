@@ -36,7 +36,7 @@ LDLIBS   := -lm $(RAYLIB)
 
 define DEPENDABLE_VAR
 .PHONY: phony
-$(BUILD_DIR)/$1: phony
+$(BUILD_DIR)/$1: phony | $(BUILD_DIR)
 	@if [ "$(shell cat $(BUILD_DIR)/$1 2>&1)" != "$($1)" ]; then \
 		echo -n $($1) > $(BUILD_DIR)/$1 ; \
 	fi
@@ -68,7 +68,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(BUILD_DIR)/RELEASE | $(OBJ_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Creat dirs:
-$(BIN_DIR) $(OBJ_DIR):
+$(BIN_DIR) $(OBJ_DIR) $(BUILD_DIR):
 	mkdir -p $@
 
 -include $(OBJ:.o=.d)
