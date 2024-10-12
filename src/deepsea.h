@@ -36,6 +36,15 @@ void DS_randno(FLOAT *const values, const size_t n);
 DS_Network *DS_network_create_random(const size_t *const sizes,
                                      const size_t num_layers);
 
+DS_Network *DS_network_create(FLOAT *const *const weights,
+                              FLOAT *const *const biases,
+                              const size_t *const sizes,
+                              const size_t num_layers);
+
+DS_Network *DS_network_create_owned(FLOAT **const weights, FLOAT **const biases,
+                                    size_t *const sizes,
+                                    const size_t num_layers);
+
 void DS_network_free(DS_Network *const network);
 
 void DS_network_print(const DS_Network *const network);
@@ -50,6 +59,8 @@ void DS_network_print_activation_layer(const DS_Network *const network);
 
 DS_Backprop *DS_brackprop_create(const size_t *const sizes,
                                  const size_t num_layers);
+
+DS_Backprop *DS_brackprop_create_from_network(DS_Network *const network);
 
 void DS_backprop_free(DS_Backprop *const backprop);
 
