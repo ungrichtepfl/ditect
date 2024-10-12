@@ -9,6 +9,7 @@ void sigmoid_single(void) {
   z = -0.4;
   assert_eqf(sigmoid_s(z), 0.40131233988751425, "Single sigmoid negativ");
 }
+
 void sigmoid_multi(void) {
   FLOAT z[3] = {0., 0.3, -0.4};
   FLOAT res[3] = {0.5, 0.5744425168116848, 0.40131233988751425};
@@ -19,4 +20,15 @@ void sigmoid_multi(void) {
     assert_eqf(out[i], res[i], "Multi sigmoid value %d", i);
 }
 
-RUN_TESTS(sigmoid_single, sigmoid_multi)
+void sigmoid_prime_single(void) {
+  FLOAT z = 0;
+  assert_eqf(sigmoid_prime_s(z), 0.25, "Single sigmoid_prime zero");
+  z = 0.3;
+  assert_eqf(sigmoid_prime_s(z), 0.24445831169074203,
+             "Single sigmoid_prime positiv");
+  z = -0.4;
+  assert_eqf(sigmoid_prime_s(z), 0.24026074574152248,
+             "Single sigmoid_prime negativ");
+}
+
+RUN_TESTS(sigmoid_single, sigmoid_multi, sigmoid_prime_single)
