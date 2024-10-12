@@ -47,6 +47,18 @@ void test_dot_add_permutation(void) {
     assert_eqf(out[i], res[i], "Dot add permutation index %d", i);
 }
 
+void test_dot_add_non_symmetric(void) {
+
+  FLOAT W[6] = {1., 2., 3., 4., 5., 6.};
+  FLOAT x[3] = {7., 8., 9.};
+  FLOAT b[2] = {1., 2.};
+  FLOAT out[2] = {0};
+  FLOAT res[2] = {51., 124.};
+  dot_add(&W[0], &x[0], &b[0], &out[0], 2, 3);
+  for (int i = 0; i < 2; ++i)
+    assert_eqf(out[i], res[i], "Dot add non-symmetric index %d", i);
+}
+
 void test_sigmoid_single(void) {
   FLOAT z = 0;
   assert_eqf(sigmoid_s(z), 0.5, "Single sigmoid zero");
@@ -77,6 +89,19 @@ void test_sigmoid_prime_single(void) {
              "Single sigmoid_prime negativ");
 }
 
+void test_distance_squared_zero(void) {
+  FLOAT x[3] = {1., 2., 3.};
+  FLOAT y[3] = {1., 2., 3.};
+  assert_eqf(distance_squared(&x[0], &y[0], 3), 0., "Zero distance");
+}
+
+void test_distance_squared(void) {
+  FLOAT x[3] = {1., 2., -3.};
+  FLOAT y[3] = {-3., 1., 2.};
+  assert_eqf(distance_squared(&x[0], &y[0], 3), 42., "Zero distance");
+}
+
 RUN_TESTS(test_sigmoid_single, test_sigmoid_multi, test_sigmoid_prime_single,
           test_dot_add_identity, test_dot_add_sum, test_dot_add_permutation,
-          test_idx)
+          test_idx, test_distance_squared_zero, test_distance_squared,
+          test_dot_add_non_symmetric)

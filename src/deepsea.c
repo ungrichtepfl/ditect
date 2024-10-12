@@ -232,8 +232,8 @@ static inline FLOAT sigmoid_prime_s(const FLOAT z) {
   return e / ((1 + e) * (1 + e));
 }
 
-static inline FLOAT distance(const FLOAT *const x, const FLOAT *const y,
-                             const size_t n) {
+static inline FLOAT distance_squared(const FLOAT *const x, const FLOAT *const y,
+                                     const size_t n) {
   FLOAT out = 0;
   for (size_t i = 0; i < n; ++i) {
     FLOAT diff = (x[i] - y[i]);
@@ -286,8 +286,9 @@ FLOAT DS_network_cost(DS_Network *const network, FLOAT *const *const xs,
   size_t len_output = network->layer_sizes[network->num_layers - 1];
   for (size_t p = 0; p < num_training; ++p) {
     DS_network_feedforward(network, xs[p]);
-    cost += distance(network->result->activations[network->num_layers - 1],
-                     ys[p], len_output);
+    cost +=
+        distance_squared(network->result->activations[network->num_layers - 1],
+                         ys[p], len_output);
   }
   return 1. / (2. * (FLOAT)num_training) * cost;
 }
