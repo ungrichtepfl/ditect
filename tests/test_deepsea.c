@@ -1,7 +1,53 @@
 #include "deepsea.c"
 #include "see.h"
 
-void sigmoid_single(void) {
+void test_idx(void) {
+
+  FLOAT W[6] = {1., 2., 3., 4., 5., 6.};
+  assert_eqf(W[IDX(0, 1, 3)], 2., "idx 3 columns first row");
+  assert_eqf(W[IDX(1, 2, 3)], 6., "idx 3 columns second row");
+  assert_eqf(W[IDX(0, 1, 2)], 2., "idx 2 columns first row");
+  assert_eqf(W[IDX(1, 0, 2)], 3., "idx 2 columns second row");
+  assert_eqf(W[IDX(2, 0, 2)], 5., "idx 2 columns second row");
+}
+
+void test_dot_add_identity(void) {
+
+  FLOAT W[4] = {1., 0., 0., 1.};
+  FLOAT x[2] = {2., 3.};
+  FLOAT b[2] = {3., 7.};
+  FLOAT out[2] = {0};
+  FLOAT res[2] = {5., 10.};
+  dot_add(&W[0], &x[0], &b[0], &out[0], 2, 2);
+  for (int i = 0; i < 2; ++i)
+    assert_eqf(out[i], res[i], "Dot add identity index %d", i);
+}
+
+void test_dot_add_sum(void) {
+
+  FLOAT W[4] = {1., 1., 1., 1.};
+  FLOAT x[2] = {2., 3.};
+  FLOAT b[2] = {3., 7.};
+  FLOAT out[2] = {0};
+  FLOAT res[2] = {8., 12.};
+  dot_add(&W[0], &x[0], &b[0], &out[0], 2, 2);
+  for (int i = 0; i < 2; ++i)
+    assert_eqf(out[i], res[i], "Dot add sum index %d", i);
+}
+
+void test_dot_add_permutation(void) {
+
+  FLOAT W[4] = {0., 1., 1., 0.};
+  FLOAT x[2] = {2., 3.};
+  FLOAT b[2] = {3., 7.};
+  FLOAT out[2] = {0};
+  FLOAT res[2] = {6., 9.};
+  dot_add(&W[0], &x[0], &b[0], &out[0], 2, 2);
+  for (int i = 0; i < 2; ++i)
+    assert_eqf(out[i], res[i], "Dot add permutation index %d", i);
+}
+
+void test_sigmoid_single(void) {
   FLOAT z = 0;
   assert_eqf(sigmoid_s(z), 0.5, "Single sigmoid zero");
   z = 0.3;
@@ -10,7 +56,7 @@ void sigmoid_single(void) {
   assert_eqf(sigmoid_s(z), 0.40131233988751425, "Single sigmoid negativ");
 }
 
-void sigmoid_multi(void) {
+void test_sigmoid_multi(void) {
   FLOAT z[3] = {0., 0.3, -0.4};
   FLOAT res[3] = {0.5, 0.5744425168116848, 0.40131233988751425};
 
@@ -20,7 +66,7 @@ void sigmoid_multi(void) {
     assert_eqf(out[i], res[i], "Multi sigmoid value %d", i);
 }
 
-void sigmoid_prime_single(void) {
+void test_sigmoid_prime_single(void) {
   FLOAT z = 0;
   assert_eqf(sigmoid_prime_s(z), 0.25, "Single sigmoid_prime zero");
   z = 0.3;
@@ -31,4 +77,6 @@ void sigmoid_prime_single(void) {
              "Single sigmoid_prime negativ");
 }
 
-RUN_TESTS(sigmoid_single, sigmoid_multi, sigmoid_prime_single)
+RUN_TESTS(test_sigmoid_single, test_sigmoid_multi, test_sigmoid_prime_single,
+          test_dot_add_identity, test_dot_add_sum, test_dot_add_permutation,
+          test_idx)
