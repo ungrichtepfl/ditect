@@ -77,7 +77,7 @@ COMPILE_DB := compile_flags.txt
 
 .PHONY: compiledb
 compiledb:
-	compiledb make
+	compiledb make all tests
 
 $(BIN_DIR)/%: $(TEST_DIR)/%.c $(BUILD_DIR)/RELEASE | $(BIN_DIR)
 	@echo "Compiling tests..."
