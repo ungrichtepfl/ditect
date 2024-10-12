@@ -43,6 +43,22 @@ static bool _test_failed = false;
     }                                                                          \
   } while (0)
 
+#define assert_eqlu(exp1, exp2, ...)                                           \
+  do {                                                                         \
+    if ((exp1) != (exp2)) {                                                    \
+      _test_failed = true;                                                     \
+      _RED();                                                                  \
+      printf("TEST FAILED ("__FILE__                                           \
+             ": %d): ",                                                        \
+             __LINE__);                                                        \
+      printf(__VA_ARGS__);                                                     \
+      printf("\n");                                                            \
+      printf("   \"%s == %s\" not equal (%lu != %lu)!\n", #exp1, #exp2,        \
+             (exp1), (exp2));                                                  \
+      _RESET();                                                                \
+    }                                                                          \
+  } while (0)
+
 #define SEE_EPSILON 1.e-5
 
 #define assert_eqf(exp1, exp2, ...)                                            \

@@ -101,7 +101,40 @@ void test_distance_squared(void) {
   assert_eqf(distance_squared(&x[0], &y[0], 3), 42., "Zero distance");
 }
 
+void test_network_creation_random(void) {
+  size_t num_layers = 3;
+  size_t sizes[3] = {2, 5, 7};
+  DS_Network *network = DS_network_create_random(&sizes[0], num_layers);
+  assert_eqlu(network->num_layers, num_layers, "Network num layers");
+  for (size_t i = 0; i < num_layers; ++i)
+    assert_eqlu(network->layer_sizes[i], sizes[i], "Layer sizes index %lu", i);
+
+  // Check for memeory segfaults
+  for (size_t l = 0; l < num_layers - 1; ++l) {
+    size_t m = network->layer_sizes[l];
+    size_t n = network->layer_sizes[l + 1];
+    for (size_t i = 0; i < n; ++i) {
+      volatile FLOAT b = network->biases[l][i];
+      (void)b;
+      for (size_t j = 0; j < m; ++j) {
+        volatile FLOAT w = network->weights[l][IDX(i, j, m)];
+        (void)w;
+      }
+    }
+  }
+  for (size_t l = 0; l < num_layers; ++l) {
+    size_t n = network->layer_sizes[l];
+    for (size_t i = 0; i < n; ++i) {
+      volatile FLOAT a = network->result->activations[l][i];
+      (void)a;
+      volatile FLOAT in = network->result->inputs[l][i];
+      (void)in;
+    }
+  }
+  DS_network_free(network);
+}
+
 RUN_TESTS(test_sigmoid_single, test_sigmoid_multi, test_sigmoid_prime_single,
           test_dot_add_identity, test_dot_add_sum, test_dot_add_permutation,
           test_idx, test_distance_squared_zero, test_distance_squared,
-          test_dot_add_non_symmetric)
+          test_dot_add_non_symmetric, test_network_creation_random)
