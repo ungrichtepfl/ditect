@@ -139,10 +139,10 @@ void test_network_creation_random(void) {
 #define LAYER_1 2
 #define LAYER_2 3
 #define LAYER_3 2
-const FLOAT WEIGHT_1[LAYER_1 * LAYER_2] = {1., 2., 3., 4., 5., 6.};
-const FLOAT WEIGHT_2[LAYER_2 * LAYER_3] = {6., 5., 4., 3., 2., 1.};
-const FLOAT BIAS_1[LAYER_2] = {1., 2., 3.};
-const FLOAT BIAS_2[LAYER_3] = {4., 5.};
+const FLOAT WEIGHT_1[LAYER_1 * LAYER_2] = {.1, .2, .3, .4, .5, .6};
+const FLOAT WEIGHT_2[LAYER_2 * LAYER_3] = {.6, .5, .4, .3, .2, .1};
+const FLOAT BIAS_1[LAYER_2] = {.1, .2, .3};
+const FLOAT BIAS_2[LAYER_3] = {.4, .5};
 const size_t LAYER_SIZES[NUM_LAYERS] = {LAYER_1, LAYER_2, LAYER_3};
 const FLOAT *WEIGHTS[NUM_LAYERS - 1] = {&WEIGHT_1[0], &WEIGHT_2[0]};
 const FLOAT *BIASES[NUM_LAYERS - 1] = {&BIAS_1[0], &BIAS_2[0]};
@@ -200,13 +200,13 @@ void test_create_test_network_owned(void) {
 
 void test_network_feedforward(void) {
   DS_Network *network = create_test_network();
-  const FLOAT input[LAYER_1] = {1., 2.};
-  const FLOAT res_input_1[LAYER_1] = {1., 2.};
-  const FLOAT res_activation_1[LAYER_1] = {1., 2.};
-  const FLOAT res_input_2[LAYER_2] = {6., 13., 20.};
-  const FLOAT res_activation_2[LAYER_2] = {0.99752738, 0.99999774, 1.};
-  const FLOAT res_input_3[LAYER_3] = {18.98515295, 10.99257761};
-  const FLOAT res_activation_3[LAYER_3] = {0.99999999, 0.99998317};
+  const FLOAT input[LAYER_1] = {.1, .2};
+  const FLOAT res_input_1[LAYER_1] = {.1, .2};
+  const FLOAT res_activation_1[LAYER_1] = {.1, .2};
+  const FLOAT res_input_2[LAYER_2] = {0.15, 0.31, 0.47};
+  const FLOAT res_activation_2[LAYER_2] = {0.53742985, 0.57688526, 0.61538376};
+  const FLOAT res_input_3[LAYER_3] = {1.25705404, 0.83814438};
+  const FLOAT res_activation_3[LAYER_3] = {0.77851856, 0.69807426};
 
   const FLOAT *res_inputs[NUM_LAYERS] = {&res_input_1[0], &res_input_2[0],
                                          &res_input_3[0]};
