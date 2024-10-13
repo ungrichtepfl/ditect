@@ -1,5 +1,6 @@
 #include "deepsea.c"
 #include "see.h"
+#include <stdio.h>
 
 void test_idx(void) {
 
@@ -227,9 +228,49 @@ void test_network_feedforward(void) {
   DS_network_free(network);
 }
 
+void test_network_backprop(void) {
+  DS_Backprop *backprop =
+      DS_brackprop_create_from_network(create_test_network());
+  FLOAT learning_rate = 1;
+  size_t num_training = 1;
+  FLOAT x[LAYER_1] = {0.2, 0.1};
+  FLOAT y[LAYER_1] = {0.5, -0.3};
+  FLOAT *xs[1] = {&x[0]};
+  FLOAT *ys[1] = {&y[0]};
+
+  FLOAT error_bias_1[LAYER_2] = {0.02287103, 0.01615626, 0.0095477};
+  FLOAT error_bias_2[LAYER_3] = {0.04801298, 0.21041785};
+  FLOAT error_weight_1[LAYER_1 * LAYER_2] = {
+      0.00457421, 0.0022871, 0.00323125, 0.00161563, 0.00190954, 0.00095477};
+  FLOAT error_weight_2[LAYER_2 * LAYER_3] = {
+      0.0256842, 0.0275807, 0.02943264, 0.11256154, 0.12087296, 0.12898913};
+
+  FLOAT *error_biases[NUM_LAYERS - 1] = {&error_bias_1[0], &error_bias_2[0]};
+  FLOAT *error_weights[NUM_LAYERS - 1] = {&error_weight_1[0],
+                                          &error_weight_2[0]};
+
+  DS_backprop_learn_once(backprop, xs, ys, num_training, learning_rate);
+
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    size_t n = backprop->network->layer_sizes[l + 1];
+    size_t m = backprop->network->layer_sizes[l];
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < m; ++j)
+        assert_eqf(backprop->weight_error_sums[l][IDX(i, j, m)],
+                   error_weights[l][IDX(i, j, m)],
+                   "Weight errors layer %lu, index i=%lu, j=%lu", l, i, j);
+
+      assert_eqf(backprop->bias_error_sums[l][i], error_biases[l][i],
+                 "Bias error layer %lu index %lu", l, i);
+    }
+  }
+
+  DS_backprop_free(backprop);
+}
+
 RUN_TESTS(test_sigmoid_single, test_sigmoid_multi, test_sigmoid_prime_single,
           test_dot_add_identity, test_dot_add_sum, test_dot_add_permutation,
           test_idx, test_distance_squared_zero, test_distance_squared,
           test_dot_add_non_symmetric, test_network_creation_random,
           test_create_test_network, test_create_test_network_owned,
-          test_network_feedforward)
+          test_network_feedforward, test_network_backprop)
