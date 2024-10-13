@@ -142,7 +142,7 @@ void test_network_creation_random(void) {
 const FLOAT WEIGHT_1[LAYER_1 * LAYER_2] = {1., 2., 3., 4., 5., 6.};
 const FLOAT WEIGHT_2[LAYER_2 * LAYER_3] = {6., 5., 4., 3., 2., 1.};
 const FLOAT BIAS_1[LAYER_2] = {1., 2., 3.};
-const FLOAT BIAS_2[LAYER_3] = {1., 2.};
+const FLOAT BIAS_2[LAYER_3] = {4., 5.};
 const size_t LAYER_SIZES[NUM_LAYERS] = {LAYER_1, LAYER_2, LAYER_3};
 const FLOAT *WEIGHTS[NUM_LAYERS - 1] = {&WEIGHT_1[0], &WEIGHT_2[0]};
 const FLOAT *BIASES[NUM_LAYERS - 1] = {&BIAS_1[0], &BIAS_2[0]};
@@ -198,8 +198,38 @@ void test_create_test_network_owned(void) {
   DS_network_free(network);
 }
 
+void test_network_feedforward(void) {
+  DS_Network *network = create_test_network();
+  const FLOAT input[LAYER_1] = {1., 2.};
+  const FLOAT res_input_1[LAYER_1] = {1., 2.};
+  const FLOAT res_activation_1[LAYER_1] = {1., 2.};
+  const FLOAT res_input_2[LAYER_2] = {6., 13., 20.};
+  const FLOAT res_activation_2[LAYER_2] = {0.99752738, 0.99999774, 1.};
+  const FLOAT res_input_3[LAYER_3] = {18.98515295, 10.99257761};
+  const FLOAT res_activation_3[LAYER_3] = {0.99999999, 0.99998317};
+
+  const FLOAT *res_inputs[NUM_LAYERS] = {&res_input_1[0], &res_input_2[0],
+                                         &res_input_3[0]};
+  const FLOAT *res_activations[NUM_LAYERS] = {
+      &res_activation_1[0], &res_activation_2[0], &res_activation_3[0]};
+
+  DS_network_feedforward(network, &input[0]);
+
+  for (size_t l = 0; l < NUM_LAYERS; ++l) {
+    size_t n = network->layer_sizes[l];
+    for (size_t i = 0; i < n; ++i) {
+      assert_eqf(network->result->inputs[l][i], res_inputs[l][i],
+                 "Input for layer %lu for index %lu", l, i);
+      assert_eqf(network->result->activations[l][i], res_activations[l][i],
+                 "Activation for layer %lu for index %lu", l, i);
+    }
+  }
+  DS_network_free(network);
+}
+
 RUN_TESTS(test_sigmoid_single, test_sigmoid_multi, test_sigmoid_prime_single,
           test_dot_add_identity, test_dot_add_sum, test_dot_add_permutation,
           test_idx, test_distance_squared_zero, test_distance_squared,
           test_dot_add_non_symmetric, test_network_creation_random,
-          test_create_test_network, test_create_test_network_owned)
+          test_create_test_network, test_create_test_network_owned,
+          test_network_feedforward)
