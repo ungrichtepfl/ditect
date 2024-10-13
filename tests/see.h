@@ -27,9 +27,9 @@ static bool _test_failed = false;
     }                                                                          \
   } while (0)
 
-#define assert_eqi(exp1, exp2, ...)                                            \
+#define assert_eq(exp1, exp2, cond, type, ...)                                 \
   do {                                                                         \
-    if ((exp1) != (exp2)) {                                                    \
+    if (!(cond)) {                                                             \
       _test_failed = true;                                                     \
       _RED();                                                                  \
       printf("TEST FAILED ("__FILE__                                           \
@@ -37,45 +37,21 @@ static bool _test_failed = false;
              __LINE__);                                                        \
       printf(__VA_ARGS__);                                                     \
       printf("\n");                                                            \
-      printf("   \"%s == %s\" not equal (%d != %d)!\n", #exp1, #exp2, (exp1),  \
-             (exp2));                                                          \
+      printf("   \"%s == %s\" not equal (%" type " != %" type ")!\n", #exp1,   \
+             #exp2, (exp1), (exp2));                                           \
       _RESET();                                                                \
     }                                                                          \
   } while (0)
+
+#define assert_eqi(exp1, exp2, ...)                                            \
+  assert_eq(exp1, exp1, (exp1) == (exp1), "d", __VA_ARGS__)
 
 #define assert_eqlu(exp1, exp2, ...)                                           \
-  do {                                                                         \
-    if ((exp1) != (exp2)) {                                                    \
-      _test_failed = true;                                                     \
-      _RED();                                                                  \
-      printf("TEST FAILED ("__FILE__                                           \
-             ": %d): ",                                                        \
-             __LINE__);                                                        \
-      printf(__VA_ARGS__);                                                     \
-      printf("\n");                                                            \
-      printf("   \"%s == %s\" not equal (%lu != %lu)!\n", #exp1, #exp2,        \
-             (exp1), (exp2));                                                  \
-      _RESET();                                                                \
-    }                                                                          \
-  } while (0)
+  assert_eq(exp1, exp1, (exp1) == (exp1), "lu", __VA_ARGS__)
 
 #define SEE_EPSILON 1.e-5
-
 #define assert_eqf(exp1, exp2, ...)                                            \
-  do {                                                                         \
-    if (fabs((exp1) - (exp2)) > SEE_EPSILON) {                                 \
-      _test_failed = true;                                                     \
-      _RED();                                                                  \
-      printf("TEST FAILED ("__FILE__                                           \
-             ": %d): ",                                                        \
-             __LINE__);                                                        \
-      printf(__VA_ARGS__);                                                     \
-      printf("\n");                                                            \
-      printf("   \"%s == %s\" not equal (%f != %f)!\n", #exp1, #exp2, (exp1),  \
-             (exp2));                                                          \
-      _RESET();                                                                \
-    }                                                                          \
-  } while (0)
+  assert_eq(exp1, exp1, fabs((exp1) - (exp2)) < SEE_EPSILON, "f", __VA_ARGS__)
 
 static inline int _run_tests(void (*tests[])(void), const unsigned long n) {
   if (!n) {
