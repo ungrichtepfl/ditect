@@ -43,6 +43,9 @@ static bool _test_failed = false;
     }                                                                          \
   } while (0)
 
+#define assert_eq_fun(exp1, exp2, fun, type, ...)                              \
+  assert_eq(exp1, exp1, fun(), type, __VA_ARGS__)
+
 #define assert_eqi(exp1, exp2, ...)                                            \
   assert_eq(exp1, exp1, (exp1) == (exp1), "d", __VA_ARGS__)
 
