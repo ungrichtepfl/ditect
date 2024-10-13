@@ -36,8 +36,8 @@ void DS_randno(FLOAT *const values, const size_t n);
 DS_Network *DS_network_create_random(const size_t *const sizes,
                                      const size_t num_layers);
 
-DS_Network *DS_network_create(FLOAT *const *const weights,
-                              FLOAT *const *const biases,
+DS_Network *DS_network_create(const FLOAT **const weights,
+                              const FLOAT **const biases,
                               const size_t *const sizes,
                               const size_t num_layers);
 

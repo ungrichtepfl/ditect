@@ -134,7 +134,72 @@ void test_network_creation_random(void) {
   DS_network_free(network);
 }
 
+/* -------- START DEFINITION OF TEST NETWORK -------- */
+#define NUM_LAYERS 3
+#define LAYER_1 2
+#define LAYER_2 3
+#define LAYER_3 2
+const FLOAT WEIGHT_1[LAYER_1 * LAYER_2] = {1., 2., 3., 4., 5., 6.};
+const FLOAT WEIGHT_2[LAYER_2 * LAYER_3] = {6., 5., 4., 3., 2., 1.};
+const FLOAT BIAS_1[LAYER_2] = {1., 2., 3.};
+const FLOAT BIAS_2[LAYER_3] = {1., 2.};
+const size_t LAYER_SIZES[NUM_LAYERS] = {LAYER_1, LAYER_2, LAYER_3};
+const FLOAT *WEIGHTS[NUM_LAYERS - 1] = {&WEIGHT_1[0], &WEIGHT_2[0]};
+const FLOAT *BIASES[NUM_LAYERS - 1] = {&BIAS_1[0], &BIAS_2[0]};
+
+DS_Network *create_test_network(void) {
+  return DS_network_create(&WEIGHTS[0], &BIASES[0], LAYER_SIZES, NUM_LAYERS);
+}
+
+void check_network_correctness(const DS_Network *const network) {
+  assert_eqlu((size_t)NUM_LAYERS, network->num_layers,
+              "Wrong number of layers.");
+  for (size_t l = 0; l < network->num_layers; ++l)
+    assert_eqlu(network->layer_sizes[l], LAYER_SIZES[l],
+                "Not the same layer sizes for layer %lu.", l);
+
+  for (size_t l = 0; l < network->num_layers - 1; ++l) {
+    size_t n = network->layer_sizes[l + 1];
+    size_t m = network->layer_sizes[l];
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < m; ++j)
+        assert_eqf(network->weights[l][IDX(i, j, m)], WEIGHTS[l][IDX(i, j, m)],
+                   "Weight for layer %lu, index i=%lu, j=%lu", l + 1, i, j);
+      assert_eqf(network->biases[l][i], BIASES[l][i],
+                 "Bias for layer %lu, index i=%lu", l + 1, i);
+    }
+  }
+}
+/* -------- END DEFINITION OF TEST NETWORK -------- */
+
+void test_create_test_network(void) {
+  DS_Network *network = create_test_network();
+  check_network_correctness(network);
+  DS_network_free(network);
+}
+
+void test_create_test_network_owned(void) {
+
+  size_t *sizes = MALLOC(NUM_LAYERS * sizeof(sizes[0]));
+  memcpy(sizes, LAYER_SIZES, NUM_LAYERS * sizeof(sizes[0]));
+  FLOAT **biases = MALLOC((NUM_LAYERS - 1) * sizeof(biases[0]));
+  FLOAT **weights = MALLOC((NUM_LAYERS - 1) * sizeof(weights[0]));
+  for (size_t l = 0; l < NUM_LAYERS - 1; ++l) {
+    biases[l] = MALLOC(LAYER_SIZES[l + 1] * sizeof(biases[l][0]));
+    memcpy(biases[l], BIASES[l], LAYER_SIZES[l + 1] * sizeof(biases[l][0]));
+    weights[l] =
+        MALLOC(LAYER_SIZES[l] * LAYER_SIZES[l + 1] * sizeof(weights[l][0]));
+    memcpy(weights[l], WEIGHTS[l],
+           LAYER_SIZES[l] * LAYER_SIZES[l + 1] * sizeof(weights[l][0]));
+  }
+  DS_Network *network =
+      DS_network_create_owned(weights, biases, sizes, NUM_LAYERS);
+  check_network_correctness(network);
+  DS_network_free(network);
+}
+
 RUN_TESTS(test_sigmoid_single, test_sigmoid_multi, test_sigmoid_prime_single,
           test_dot_add_identity, test_dot_add_sum, test_dot_add_permutation,
           test_idx, test_distance_squared_zero, test_distance_squared,
-          test_dot_add_non_symmetric, test_network_creation_random)
+          test_dot_add_non_symmetric, test_network_creation_random,
+          test_create_test_network, test_create_test_network_owned)

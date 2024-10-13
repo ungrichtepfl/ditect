@@ -126,8 +126,8 @@ DS_Network *DS_network_create_random(const size_t *const sizes,
   return DS_network_create_owned(weights, biases, layer_sizes, num_layers);
 }
 
-DS_Network *DS_network_create(FLOAT *const *const weights,
-                              FLOAT *const *const biases,
+DS_Network *DS_network_create(const FLOAT **const weights,
+                              const FLOAT **const biases,
                               const size_t *const sizes,
                               const size_t num_layers) {
   ASSERT(num_layers > 1,
