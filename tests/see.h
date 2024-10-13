@@ -18,12 +18,12 @@ static unsigned long _current_test = 0;
     if (!(cond)) {                                                             \
       _test_failed = true;                                                     \
       _RED();                                                                  \
-      printf(  "ASSERTION IN TEST %lu FAILED ("__FILE__                                       \
+      printf("ASSERTION IN TEST %lu FAILED ("__FILE__                          \
              ": %d): ",                                                        \
              _current_test, __LINE__);                                         \
       printf(__VA_ARGS__);                                                     \
       printf("\n");                                                            \
-      printf("     \"%s\" is False!\n", #cond);                                  \
+      printf("     \"%s\" is False!\n", #cond);                                \
       _RESET();                                                                \
     }                                                                          \
   } while (0)
@@ -33,29 +33,32 @@ static unsigned long _current_test = 0;
     if (!(cond)) {                                                             \
       _test_failed = true;                                                     \
       _RED();                                                                  \
-      printf("  ASSERTION IN TEST %lu FAILED ("__FILE__                                       \
+      printf("  ASSERTION IN TEST %lu FAILED ("__FILE__                        \
              ": %d): ",                                                        \
              _current_test, __LINE__);                                         \
       printf(__VA_ARGS__);                                                     \
       printf("\n");                                                            \
-      printf("     \"%s == %s\" not equal (%" type " != %" type ")!\n", #exp1,   \
+      printf("     \"%s == %s\" not equal (%" type " != %" type ")!\n", #exp1, \
              #exp2, (exp1), (exp2));                                           \
       _RESET();                                                                \
     }                                                                          \
   } while (0)
 
 #define assert_eq_fun(exp1, exp2, fun, type, ...)                              \
-  assert_eq(exp1, exp1, fun(), type, __VA_ARGS__)
+  assert_eq(exp1, exp2, fun(), type, __VA_ARGS__)
 
 #define assert_eqi(exp1, exp2, ...)                                            \
-  assert_eq(exp1, exp1, (exp1) == (exp1), "d", __VA_ARGS__)
+  assert_eq(exp1, exp2, (exp1) == (exp2), "d", __VA_ARGS__)
 
 #define assert_eqlu(exp1, exp2, ...)                                           \
-  assert_eq(exp1, exp1, (exp1) == (exp1), "lu", __VA_ARGS__)
+  assert_eq(exp1, exp2, (exp1) == (exp2), "lu", __VA_ARGS__)
 
 #define SEE_EPSILON 1.e-8
 #define assert_eqf(exp1, exp2, ...)                                            \
-  assert_eq(exp1, exp1, fabs((exp1) - (exp2)) < SEE_EPSILON, "f", __VA_ARGS__)
+  assert_eq(exp1, exp2, fabs((exp1) - (exp2)) < SEE_EPSILON, "f", __VA_ARGS__)
+
+#define assert_eqf_eps(exp1, exp2, eps, ...)                                   \
+  assert_eq(exp1, exp2, fabs((exp1) - (exp2)) < eps, "f", __VA_ARGS__)
 
 static inline int _run_tests(void (*tests[])(void), const unsigned long n) {
   if (!n) {
