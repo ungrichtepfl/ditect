@@ -26,15 +26,17 @@ else
 endif
 
 ifeq ("$(shell uname -m)","x86_64")
-	RAYLIB=-I ./raylib-5.0_linux_amd64/include/ -L./raylib-5.0_linux_amd64/lib -l:libraylib.a -ldl
+	C_RAYLIB=-I ./raylib-5.0_linux_amd64/include/ 
+	LD_RAYLIB=-L./raylib-5.0_linux_amd64/lib -l:libraylib.a
 else
-	RAYLIB=$(shell pkg-config --libs --cflags "raylib")
+	C_RAYLIB=$(shell pkg-config --cflags "raylib")
+	LD_RAYLIB=$(shell pkg-config --libs "raylib")
 endif
 
 CPPFLAGS := -I$(INC_DIR) -MMD -MP
-CFLAGS   := -Wall -Werror -Wextra -Wpedantic $(OPTFLAG)
+CFLAGS   := -Wall -Werror -Wextra -Wpedantic $(OPTFLAG) $(C_RAYLIB)
 LDFLAGS  := -L$(LIB_DIR) $(OPTFLAG)
-LDLIBS   := -lm $(RAYLIB)
+LDLIBS   := -lm $(LD_RAYLIB)
 
 define DEPENDABLE_VAR
 .PHONY: phony
