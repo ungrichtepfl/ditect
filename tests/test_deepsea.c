@@ -246,7 +246,7 @@ void test_network_backprop_last_error(void) {
              "Last output error: Negative error.");
 }
 
-void test_network_backprop(void) {
+void test_network_backprop_error_sums_single_input(void) {
   DS_Backprop *backprop =
       DS_brackprop_create_from_network(create_test_network());
   FLOAT learning_rate = 1;
@@ -276,10 +276,53 @@ void test_network_backprop(void) {
       for (size_t j = 0; j < m; ++j)
         assert_eqf(backprop->weight_error_sums[l][IDX(i, j, m)],
                    error_weights[l][IDX(i, j, m)],
-                   "Weight errors layer %lu, index i=%lu, j=%lu", l, i, j);
+                   "Weight errors l=%lu, i=%lu, j=%lu", l, i, j);
 
       assert_eqf(backprop->bias_error_sums[l][i], error_biases[l][i],
-                 "Bias error layer %lu index %lu", l, i);
+                 "Bias error l=%lu, i=%lu", l, i);
+    }
+  }
+
+  DS_backprop_free(backprop);
+}
+
+void test_network_backprop_double_input(void) {
+  DS_Backprop *backprop =
+      DS_brackprop_create_from_network(create_test_network());
+  FLOAT learning_rate = 0.8;
+  size_t num_training = 2;
+
+  /* xs = [np.array([[0.3, 0.2]]).T, np.array([[0.4, 0.5]]).T] */
+  /* ys = [np.array([[0.1, -0.2]]).T, np.array([[-0.3, 0.7]]).T] */
+  FLOAT x1[LAYER_1] = {0.3, 0.2};
+  FLOAT x2[LAYER_1] = {0.4, 0.5};
+  FLOAT y1[LAYER_1] = {0.1, -0.2};
+  FLOAT y2[LAYER_1] = {-0.3, 0.7};
+  FLOAT *xs[2] = {&x1[0], &x2[0]};
+  FLOAT *ys[2] = {&y1[0], &y2[0]};
+  FLOAT bias_1[LAYER_2] = {0.07672889, 0.1822576, 0.28776812};
+  FLOAT bias_2[LAYER_3] = {0.28116617, 0.42410679};
+  FLOAT weight_1[LAYER_1 * LAYER_2] = {0.09194743, 0.19213205, 0.29383053,
+                                       0.39391128, 0.49571109, 0.5956956};
+  FLOAT weight_2[LAYER_2 * LAYER_3] = {0.53429254, 0.42713372, 0.32038983,
+                                       0.25883112, 0.15510289, 0.05150874};
+
+  FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
+  FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
+
+  DS_backprop_learn_once(backprop, xs, ys, num_training, learning_rate);
+
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    size_t n = backprop->network->layer_sizes[l + 1];
+    size_t m = backprop->network->layer_sizes[l];
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < m; ++j)
+        assert_eqf(backprop->network->weights[l][IDX(i, j, m)],
+                   weights[l][IDX(i, j, m)], "Weight l=%lu, index i=%lu, j=%lu",
+                   l, i, j);
+
+      assert_eqf(backprop->network->biases[l][i], biases[l][i],
+                 "Bias l=%lu, i=%lu", l, i);
     }
   }
 
@@ -292,4 +335,5 @@ RUN_TESTS(test_sigmoid_single, test_sigmoid_multi, test_sigmoid_prime_single,
           test_dot_add_non_symmetric, test_network_creation_random,
           test_create_test_network, test_create_test_network_owned,
           test_network_feedforward, test_network_backprop_last_error,
-          test_network_backprop)
+          test_network_backprop_error_sums_single_input,
+          test_network_backprop_double_input)

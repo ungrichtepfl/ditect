@@ -200,6 +200,18 @@ def main():
         print(f"Errors w {i}:\n{nabla_w}")
     print("----------------------")
 
+    print("------ Mini Batch ------")
+    xs = [np.array([[0.3, 0.2]]).T, np.array([[0.4, 0.5]]).T]
+    ys = [np.array([[0.1, -0.2]]).T, np.array([[-0.3, 0.7]]).T]
+    mini_batch = list(zip(xs, ys))
+    network = Network(BIASES, WEIGHTS)
+    eta = 0.8
+    network.update_mini_batch(mini_batch, eta)
+    for i, (bias, weight) in enumerate(zip(network.biases, network.weights), start=1):
+        print(f"Bias {i}: {bias.T}")
+        print(f"Weight {i}: {weight}")
+    print("----------------------")
+
 
 if __name__ == "__main__":
     main()
