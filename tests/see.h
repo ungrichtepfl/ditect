@@ -1,11 +1,18 @@
 #ifndef SEE_H
 #define SEE_H
 
-#include <alloca.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#ifndef SEE_MALLOC
+#define SEE_MALLOC malloc
+#endif
+#ifndef SEE_FREE
+#define SEE_FREE free
+#endif
 
 static bool _test_failed = false;
 static char *_current_test = NULL;
@@ -74,8 +81,12 @@ static inline int _run_tests(void (*tests[])(void), const unsigned long n,
   }
 
   // Extract names
-  unsigned long test_names_str_len = strlen(test_names_str);
-  char *test_names_str_buffer = alloca(test_names_str_len * sizeof(char));
+  unsigned long test_names_str_len = strlen(test_names_str) + 1;
+  char *test_names_str_buffer = SEE_MALLOC(test_names_str_len * sizeof(char));
+  if (!test_names_str_buffer) {
+    fprintf(stderr, "Could not run tests. Out of memory");
+    return 1;
+  }
   strcpy(test_names_str_buffer, test_names_str);
   char *test_names[n];
   unsigned long i = 0;
@@ -84,7 +95,9 @@ static inline int _run_tests(void (*tests[])(void), const unsigned long n,
     test_names[i] = name;
   }
 
-  unsigned long failed_tests = 0;
+  unsigned long num_failed_tests = 0;
+  char *failed_tests[n];
+
   printf("---------------------------------------------------------------------"
          "--\n");
   for (unsigned long i = 0; i < n; ++i) {
@@ -95,7 +108,7 @@ static inline int _run_tests(void (*tests[])(void), const unsigned long n,
       _RED();
       printf("Test \"%s\" FAILED\n", _current_test);
       _RESET();
-      ++failed_tests;
+      failed_tests[num_failed_tests++] = _current_test;
     } else {
       _GREEN();
       printf("Test \"%s\" PASSED\n", _current_test);
@@ -104,9 +117,11 @@ static inline int _run_tests(void (*tests[])(void), const unsigned long n,
   }
   printf("---------------------------------------------------------------------"
          "--\n");
-  if (failed_tests) {
+  if (num_failed_tests) {
     _RED();
-    printf("FAILURE: %lu of %lu tests failed!\n", failed_tests, n);
+    printf("FAILURE: %lu of %lu tests failed!\n", num_failed_tests, n);
+    for (unsigned int i = 0; i < num_failed_tests; ++i)
+      printf("  TEST \"%s\" FAILED\n", failed_tests[i]);
     _RESET();
   } else {
     _GREEN();
@@ -116,7 +131,9 @@ static inline int _run_tests(void (*tests[])(void), const unsigned long n,
       printf("SUCCESS: All %lu tests passed!\n", n);
     _RESET();
   }
-  return failed_tests;
+
+  SEE_FREE(test_names_str_buffer);
+  return num_failed_tests;
 }
 
 #define RUN_TESTS(...)                                                         \
