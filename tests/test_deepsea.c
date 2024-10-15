@@ -64,9 +64,9 @@ void test_sigmoid_single(void) {
   FLOAT z = 0;
   assert_eqf(sigmoid_s(z), 0.5, "Single sigmoid zero");
   z = 0.3;
-  assert_eqf(sigmoid_s(z), 0.5744425168116848, "Single sigmoid positiv");
+  assert_eqf(sigmoid_s(z), 0.5744425168116848, "Single sigmoid positive");
   z = -0.4;
-  assert_eqf(sigmoid_s(z), 0.40131233988751425, "Single sigmoid negativ");
+  assert_eqf(sigmoid_s(z), 0.40131233988751425, "Single sigmoid negative");
 }
 
 void test_sigmoid_multi(void) {
@@ -84,10 +84,10 @@ void test_sigmoid_prime_single(void) {
   assert_eqf(sigmoid_prime_s(z), 0.25, "Single sigmoid_prime zero");
   z = 0.3;
   assert_eqf(sigmoid_prime_s(z), 0.24445831169074203,
-             "Single sigmoid_prime positiv");
+             "Single sigmoid_prime positive");
   z = -0.4;
   assert_eqf(sigmoid_prime_s(z), 0.24026074574152248,
-             "Single sigmoid_prime negativ");
+             "Single sigmoid_prime negative");
 }
 
 void test_distance_squared_zero(void) {
@@ -110,7 +110,7 @@ void test_network_creation_random(void) {
   for (size_t i = 0; i < num_layers; ++i)
     assert_eqlu(network->layer_sizes[i], sizes[i], "Layer sizes index %lu", i);
 
-  // Check for memeory segfaults
+  // Check for memory segfaults
   for (size_t l = 0; l < num_layers - 1; ++l) {
     size_t m = network->layer_sizes[l];
     size_t n = network->layer_sizes[l + 1];
@@ -228,6 +228,24 @@ void test_network_feedforward(void) {
   DS_network_free(network);
 }
 
+void test_network_backprop_last_error(void) {
+  FLOAT a = 0.3;
+  FLOAT z = 0.5;
+  FLOAT y = 0.3;
+  assert_eqf(last_output_error_s(a, z, y), 0., "Last output error: No error.");
+
+  a = 0.8;
+  z = 0.3;
+  y = 0.1;
+  assert_eqf(last_output_error_s(a, z, y), 0.17112081818352212,
+             "Last output error: Positive error.");
+  a = 0.7;
+  z = 0.8;
+  y = 0.9;
+  assert_eqf(last_output_error_s(a, z, y), -0.042781939304058894,
+             "Last output error: Negative error.");
+}
+
 void test_network_backprop(void) {
   DS_Backprop *backprop =
       DS_brackprop_create_from_network(create_test_network());
@@ -273,4 +291,5 @@ RUN_TESTS(test_sigmoid_single, test_sigmoid_multi, test_sigmoid_prime_single,
           test_idx, test_distance_squared_zero, test_distance_squared,
           test_dot_add_non_symmetric, test_network_creation_random,
           test_create_test_network, test_create_test_network_owned,
-          test_network_feedforward, test_network_backprop)
+          test_network_feedforward, test_network_backprop_last_error,
+          test_network_backprop)

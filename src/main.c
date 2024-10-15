@@ -37,7 +37,7 @@ int main(void) {
 
   FLOAT cost = DS_backprop_network_cost(backprop, xs, ys, NUM_TRAINING);
   PRINTF("Cost of network BEFORE learning: %.2f\n", cost);
-  for (int i = 0; i < 1000; ++i)
+  for (int i = 0; i < 1; ++i)
     DS_backprop_learn_once(backprop, xs, ys, NUM_TRAINING, learing_rate);
   cost = DS_backprop_network_cost(backprop, xs, ys, NUM_TRAINING);
   PRINTF("cost of network AFTER learing: %.2f\n", cost);

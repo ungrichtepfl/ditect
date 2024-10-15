@@ -122,7 +122,7 @@ class Network(object):
             activation = sigmoid(z)
             activations.append(activation)
         # backward pass
-        delta = self.cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])
+        delta = self.cost_derivative(activations[-1], y, zs[-1])
         nabla_b[-1] = delta
         nabla_w[-1] = np.dot(delta, activations[-2].transpose())
         # Note that the variable l in the loop below is used a little
@@ -147,10 +147,10 @@ class Network(object):
         test_results = [(np.argmax(self.feedforward(x)[0]), y) for (x, y) in test_data]
         return sum(int(x == y) for (x, y) in test_results)
 
-    def cost_derivative(self, output_activations, y):
+    def cost_derivative(self, output_activations, y, z):
         """Return the vector of partial derivatives \partial C_x /
         \partial a for the output activations."""
-        return output_activations - y
+        return (output_activations - y) * sigmoid_prime(z)
 
 
 #### Miscellaneous functions
@@ -173,7 +173,25 @@ def main():
         print(f"Input {i}: {inp.T}")
         print(f"Activation {i}: {a.T}")
     print("----------------------")
-    print("------ BACKPROP ------")
+    print("------ LAST ERROR ------")
+    a = 0.3
+    z = 0.5
+    y = 0.3
+    o = network.cost_derivative(a, y, z)
+    print(f"Last cost: {o}")
+    a = 0.8
+    z = 0.3
+    y = 0.1
+    o = network.cost_derivative(a, y, z)
+    print(f"Last cost: {o}")
+    a = 0.7
+    z = 0.8
+    y = 0.9
+    o = network.cost_derivative(a, y, z)
+    print(f"Last cost: {o}")
+
+    print("----------------------")
+    print("------ BACKPROP 1 ------")
     x = np.array([[0.2, 0.1]]).T
     y = np.array([[0.5, -0.3]]).T
     nablas_b, nablas_w = network.backprop(x, y)

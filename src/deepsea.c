@@ -369,7 +369,7 @@ void DS_backprop_free(DS_Backprop *const backprop) {
 
 static inline FLOAT last_output_error_s(const FLOAT a, const FLOAT z,
                                         const FLOAT y) {
-  return (a - y) * sigmoid_s(z);
+  return (a - y) * sigmoid_prime_s(z);
 }
 
 static void calculate_output_error(DS_Backprop *const backprop,
@@ -422,12 +422,12 @@ static void calculate_error_sums(DS_Backprop *const backprop,
       const size_t m = backprop->network->layer_sizes[l];
       const FLOAT *const a = backprop->network->result->activations[l];
       for (size_t i = 0; i < n; ++i) {
-        backprop->bias_error_sums[l][i] += backprop->errors[l][i];
+        backprop->bias_error_sums[l][i] += backprop->errors[l + 1][i];
       }
       for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j < m; ++j) {
           backprop->weight_error_sums[l][IDX(i, j, m)] +=
-              a[j] * backprop->errors[l][i];
+              a[j] * backprop->errors[l + 1][i];
         }
       }
     }
