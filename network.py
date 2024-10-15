@@ -210,6 +210,10 @@ def main():
     for i, (bias, weight) in enumerate(zip(network.biases, network.weights), start=1):
         print(f"Bias {i}: {bias.T}")
         print(f"Weight {i}: {weight}")
+    network.update_mini_batch(mini_batch, eta)
+    for i, (bias, weight) in enumerate(zip(network.biases, network.weights), start=1):
+        print(f"Bias {i}: {bias.T}")
+        print(f"Weight {i}: {weight}")
     print("----------------------")
 
 
