@@ -27,7 +27,7 @@ endif
 
 ifeq ("$(shell uname -m)","x86_64")
 	C_RAYLIB=-I ./raylib-5.0_linux_amd64/include/ 
-	LD_RAYLIB=-L./raylib-5.0_linux_amd64/lib -l:libraylib.a
+	LD_RAYLIB=-L./raylib-5.0_linux_amd64/lib -l:libraylib.a -ldl -lpthread
 else
 	C_RAYLIB=$(shell pkg-config --cflags "raylib")
 	LD_RAYLIB=$(shell pkg-config --libs "raylib")
