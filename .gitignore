@@ -1,6 +1,7 @@
 *.mp3
 *.wav
 *.png
+mnist/
 build/
 src/HandmadeMath.h
 compile_commands.json
