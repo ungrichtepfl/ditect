@@ -21,31 +21,31 @@ static bool random_init = false;
 #define MAX_OUTPUT_LABEL_STRLEN 0xFF
 
 typedef struct {
-  FLOAT **activations;
-  FLOAT **inputs;
+  DS_FLOAT **activations;
+  DS_FLOAT **inputs;
 } DS_NetworkResult;
 
 struct DS_Network {
   size_t num_layers;
   size_t *layer_sizes;
-  FLOAT **biases;
-  FLOAT **weights;
+  DS_FLOAT **biases;
+  DS_FLOAT **weights;
   DS_NetworkResult *result;
   char **output_labels;
 };
 typedef struct DS_Network DS_Network;
 
 /// Normal random numbers generator - Marsaglia algorithm.
-FLOAT *DS_randn(const size_t n) {
+DS_FLOAT *DS_randn(const size_t n) {
   INIT_RAND();
   size_t m = n + n % 2;
-  FLOAT *values = (FLOAT *)CALLOC(m, sizeof(values[0]));
+  DS_FLOAT *values = (DS_FLOAT *)DS_CALLOC(m, sizeof(values[0]));
   DS_ASSERT(values, "Could not create random array, out of memory.");
   for (size_t i = 0; i < m; i += 2) {
-    FLOAT x, y, rsq, f;
+    DS_FLOAT x, y, rsq, f;
     do {
-      x = 2.0 * rand() / (FLOAT)RAND_MAX - 1.0;
-      y = 2.0 * rand() / (FLOAT)RAND_MAX - 1.0;
+      x = 2.0 * rand() / (DS_FLOAT)RAND_MAX - 1.0;
+      y = 2.0 * rand() / (DS_FLOAT)RAND_MAX - 1.0;
       rsq = x * x + y * y;
     } while (rsq >= 1. || rsq == 0.);
     f = sqrt(-2.0 * log(rsq) / rsq);
@@ -55,38 +55,39 @@ FLOAT *DS_randn(const size_t n) {
   return values;
 }
 
-void DS_randno(FLOAT *const values, const size_t n) {
-  FLOAT *r = DS_randn(n);
+void DS_randno(DS_FLOAT *const values, const size_t n) {
+  DS_FLOAT *r = DS_randn(n);
   DS_ASSERT(memcpy(values, r, n * sizeof(values[0])),
             "Could copy random values");
-  free(r);
+  DS_FREE(r);
 }
 
 static DS_NetworkResult *create_empty_result(const size_t num_layers,
                                              const size_t *const layer_sizes) {
-  DS_NetworkResult *result = MALLOC(sizeof(*result));
+  DS_NetworkResult *result = DS_MALLOC(sizeof(*result));
   DS_ASSERT(result, "Could not create result out of memory.");
-  result->inputs = MALLOC(num_layers * sizeof(result->inputs[0]));
+  result->inputs = DS_MALLOC(num_layers * sizeof(result->inputs[0]));
   DS_ASSERT(result->inputs, "Could not create result out of memory.");
-  result->activations = MALLOC(num_layers * sizeof(result->activations[0]));
+  result->activations = DS_MALLOC(num_layers * sizeof(result->activations[0]));
   DS_ASSERT(result->activations, "Could not create result out of memory.");
   for (size_t l = 0; l < num_layers; ++l) {
-    result->inputs[l] = CALLOC(layer_sizes[l], sizeof(result->inputs[l][0]));
+    result->inputs[l] = DS_CALLOC(layer_sizes[l], sizeof(result->inputs[l][0]));
     DS_ASSERT(result->inputs[l], "Could not create result out of memory.");
     result->activations[l] =
-        CALLOC(layer_sizes[l], sizeof(result->activations[l][0]));
+        DS_CALLOC(layer_sizes[l], sizeof(result->activations[l][0]));
     DS_ASSERT(result->activations[l], "Could not create result out of memory.");
   }
   return result;
 }
 
-DS_Network *DS_network_create_owned(FLOAT **const weights, FLOAT **const biases,
+DS_Network *DS_network_create_owned(DS_FLOAT **const weights,
+                                    DS_FLOAT **const biases,
                                     size_t *const sizes,
                                     const size_t num_layers,
                                     char *const *const output_labels) {
   DS_ASSERT(num_layers > 1,
             "Cannot create network. At least 2 layers are needed.");
-  DS_Network *network = MALLOC(sizeof(*network));
+  DS_Network *network = DS_MALLOC(sizeof(*network));
   DS_ASSERT(network, "Could not create network, out of memory.");
 
   network->layer_sizes = sizes;
@@ -98,14 +99,14 @@ DS_Network *DS_network_create_owned(FLOAT **const weights, FLOAT **const biases,
 
   if (output_labels) {
     const size_t L = sizes[num_layers - 1];
-    network->output_labels = MALLOC(L * sizeof(network->output_labels[0]));
+    network->output_labels = DS_MALLOC(L * sizeof(network->output_labels[0]));
     for (size_t i = 0; i < L; ++i) {
       const size_t label_len = strlen(output_labels[i]);
       DS_ASSERT(label_len <= MAX_OUTPUT_LABEL_STRLEN,
                 "Output label at index %lu is longer than %d characters.", i,
                 MAX_OUTPUT_LABEL_STRLEN);
       network->output_labels[i] =
-          MALLOC((label_len + 1) * sizeof(output_labels[i][0]));
+          DS_MALLOC((label_len + 1) * sizeof(output_labels[i][0]));
       strcpy(network->output_labels[i], output_labels[i]);
     }
   }
@@ -118,9 +119,9 @@ DS_Network *DS_network_create_random(const size_t *const sizes,
                                      char *const *const output_labels) {
   DS_ASSERT(num_layers > 1,
             "Cannot create network. At least 2 layers are needed.");
-  size_t *layer_sizes = MALLOC(num_layers * sizeof(layer_sizes[0]));
-  FLOAT **biases = MALLOC((num_layers - 1) * sizeof(biases[0]));
-  FLOAT **weights = MALLOC((num_layers - 1) * sizeof(weights[0]));
+  size_t *layer_sizes = DS_MALLOC(num_layers * sizeof(layer_sizes[0]));
+  DS_FLOAT **biases = DS_MALLOC((num_layers - 1) * sizeof(biases[0]));
+  DS_FLOAT **weights = DS_MALLOC((num_layers - 1) * sizeof(weights[0]));
   DS_ASSERT(layer_sizes && biases && weights,
             "Could not create network, out of memory.");
   DS_ASSERT(memcpy(layer_sizes, sizes, num_layers * sizeof(sizes[0])),
@@ -134,17 +135,18 @@ DS_Network *DS_network_create_random(const size_t *const sizes,
                                  output_labels);
 }
 
-DS_Network *DS_network_create(const FLOAT **const weights,
-                              const FLOAT **const biases,
+DS_Network *DS_network_create(const DS_FLOAT **const weights,
+                              const DS_FLOAT **const biases,
                               const size_t *const sizes,
                               const size_t num_layers,
                               char *const *const output_labels) {
   DS_ASSERT(num_layers > 1,
             "Cannot create network. At least 2 layers are needed.");
-  size_t *layer_sizes = MALLOC(num_layers * sizeof(layer_sizes[0]));
-  FLOAT **network_biases = MALLOC((num_layers - 1) * sizeof(network_biases[0]));
-  FLOAT **network_weights =
-      MALLOC((num_layers - 1) * sizeof(network_weights[0]));
+  size_t *layer_sizes = DS_MALLOC(num_layers * sizeof(layer_sizes[0]));
+  DS_FLOAT **network_biases =
+      DS_MALLOC((num_layers - 1) * sizeof(network_biases[0]));
+  DS_FLOAT **network_weights =
+      DS_MALLOC((num_layers - 1) * sizeof(network_weights[0]));
   DS_ASSERT(layer_sizes && network_biases && network_weights,
             "Could not create network, out of memory.");
   DS_ASSERT(memcpy(layer_sizes, sizes, num_layers * sizeof(sizes[0])),
@@ -152,13 +154,13 @@ DS_Network *DS_network_create(const FLOAT **const weights,
 
   for (size_t l = 0; l < num_layers - 1; ++l) {
     network_biases[l] =
-        MALLOC(layer_sizes[l + 1] * sizeof(network_biases[l][0]));
+        DS_MALLOC(layer_sizes[l + 1] * sizeof(network_biases[l][0]));
     DS_ASSERT(network_biases[l], "Could not create network, out of memory.");
     DS_ASSERT(memcpy(network_biases[l], biases[l],
                      layer_sizes[l + 1] * sizeof(network_biases[l][0])),
               "Could not copy biases.");
-    network_weights[l] = MALLOC(layer_sizes[l] * layer_sizes[l + 1] *
-                                sizeof(network_weights[l][0]));
+    network_weights[l] = DS_MALLOC(layer_sizes[l] * layer_sizes[l + 1] *
+                                   sizeof(network_weights[l][0]));
     DS_ASSERT(network_weights[l], "Could not create network, out of memory.");
     DS_ASSERT(memcpy(network_weights[l], weights[l],
                      layer_sizes[l] * layer_sizes[l + 1] *
@@ -171,14 +173,14 @@ DS_Network *DS_network_create(const FLOAT **const weights,
 static void network_result_free(DS_NetworkResult *result,
                                 const size_t num_layers) {
   for (size_t l = 0; l < num_layers; ++l) {
-    free(result->inputs[l]);
+    DS_FREE(result->inputs[l]);
   }
   for (size_t l = 0; l < num_layers; ++l) {
-    free(result->activations[l]);
+    DS_FREE(result->activations[l]);
   }
-  free(result->inputs);
-  free(result->activations);
-  free(result);
+  DS_FREE(result->inputs);
+  DS_FREE(result->activations);
+  DS_FREE(result);
 }
 
 void DS_network_free(DS_Network *const network) {
@@ -187,83 +189,84 @@ void DS_network_free(DS_Network *const network) {
   if (network->output_labels) {
     const size_t L = network->layer_sizes[network->num_layers - 1];
     for (size_t i = 0; i < L; ++i)
-      free(network->output_labels[i]);
-    free(network->output_labels);
+      DS_FREE(network->output_labels[i]);
+    DS_FREE(network->output_labels);
   }
 
   for (size_t i = 0; i < network->num_layers - 1; ++i) {
-    free(network->biases[i]);
-    free(network->weights[i]);
+    DS_FREE(network->biases[i]);
+    DS_FREE(network->weights[i]);
   }
-  free(network->biases);
-  free(network->weights);
-  free(network->layer_sizes);
+  DS_FREE(network->biases);
+  DS_FREE(network->weights);
+  DS_FREE(network->layer_sizes);
 
-  free(network);
+  DS_FREE(network);
 }
 
 void DS_network_print(const DS_Network *const network) {
 
-  PRINTF("Network: \n");
-  PRINTF("Number of layers: %zu\n", network->num_layers);
-  PRINTF("Layer sizes: [ ");
+  DS_PRINTF("Network: \n");
+  DS_PRINTF("Number of layers: %zu\n", network->num_layers);
+  DS_PRINTF("Layer sizes: [ ");
   for (size_t l = 0; l < network->num_layers; ++l) {
-    PRINTF("%zu ", network->layer_sizes[l]);
+    DS_PRINTF("%zu ", network->layer_sizes[l]);
   }
-  PRINTF("]\n");
+  DS_PRINTF("]\n");
 
   for (size_t l = 0; l < network->num_layers - 1; ++l) {
-    PRINTF("Biases %zu: [ ", l);
+    DS_PRINTF("Biases %zu: [ ", l);
     for (size_t i = 0; i < network->layer_sizes[l + 1]; ++i) {
-      PRINTF("%f ", network->biases[l][i]);
+      DS_PRINTF("%f ", network->biases[l][i]);
     }
-    PRINTF("]\n");
+    DS_PRINTF("]\n");
   }
 
   // Print the matrix weights
   for (size_t l = 0; l < network->num_layers - 1; ++l) {
-    PRINTF("Weights %zu:\n", l);
+    DS_PRINTF("Weights %zu:\n", l);
     size_t n = network->layer_sizes[l + 1];
     size_t m = network->layer_sizes[l];
     for (size_t i = 0; i < n; ++i) {
       for (size_t j = 0; j < m; ++j) {
-        PRINTF("%f ", network->weights[l][IDX(i, j, m)]);
+        DS_PRINTF("%f ", network->weights[l][IDX(i, j, m)]);
       }
-      PRINTF("\n");
+      DS_PRINTF("\n");
     }
-    PRINTF("\n");
+    DS_PRINTF("\n");
   }
 }
 
-static inline FLOAT sigmoid_s(const FLOAT z) { return 1 / (1 + exp(-z)); }
+static inline DS_FLOAT sigmoid_s(const DS_FLOAT z) { return 1 / (1 + exp(-z)); }
 
-static inline void sigmoid(const FLOAT *const z, FLOAT *const out,
+static inline void sigmoid(const DS_FLOAT *const z, DS_FLOAT *const out,
                            const size_t len) {
   for (size_t i = 0; i < len; ++i) {
     out[i] = sigmoid_s(z[i]);
   }
 }
 
-static inline FLOAT sigmoid_prime_s(const FLOAT z) {
-  FLOAT e = exp(-z);
+static inline DS_FLOAT sigmoid_prime_s(const DS_FLOAT z) {
+  DS_FLOAT e = exp(-z);
   return e / ((1 + e) * (1 + e));
 }
 
-static inline FLOAT distance_squared(const FLOAT *const x, const FLOAT *const y,
-                                     const size_t n) {
-  FLOAT out = 0;
+static inline DS_FLOAT distance_squared(const DS_FLOAT *const x,
+                                        const DS_FLOAT *const y,
+                                        const size_t n) {
+  DS_FLOAT out = 0;
   for (size_t i = 0; i < n; ++i) {
-    FLOAT diff = (x[i] - y[i]);
+    DS_FLOAT diff = (x[i] - y[i]);
     out += diff * diff;
   }
   return out;
 }
 
-static inline void dot_add(const FLOAT *const W, const FLOAT *const x,
-                           const FLOAT *const b, FLOAT *const out,
+static inline void dot_add(const DS_FLOAT *const W, const DS_FLOAT *const x,
+                           const DS_FLOAT *const b, DS_FLOAT *const out,
                            const size_t n, const size_t m) {
   for (size_t i = 0; i < n; ++i) {
-    FLOAT tmp = 0;
+    DS_FLOAT tmp = 0;
     for (size_t j = 0; j < m; ++j) {
       tmp += W[IDX(i, j, m)] * x[j];
     }
@@ -272,7 +275,7 @@ static inline void dot_add(const FLOAT *const W, const FLOAT *const x,
 }
 
 void DS_network_feedforward(DS_Network *const network,
-                            const FLOAT *const input) {
+                            const DS_FLOAT *const input) {
   DS_ASSERT(memcpy(network->result->inputs[0], input,
                    network->layer_sizes[0] * sizeof(input[0])),
             "Could not copy inputs.");
@@ -283,8 +286,8 @@ void DS_network_feedforward(DS_Network *const network,
   for (size_t l = 0; l < network->num_layers - 1; ++l) {
     const size_t n = network->layer_sizes[l + 1];
     const size_t m = network->layer_sizes[l];
-    const FLOAT *const W = network->weights[l];
-    const FLOAT *const b = network->biases[l];
+    const DS_FLOAT *const W = network->weights[l];
+    const DS_FLOAT *const b = network->biases[l];
     dot_add(W, network->result->activations[l], b,
             network->result->activations[l + 1], n, m);
     DS_ASSERT(memcpy(network->result->inputs[l + 1],
@@ -298,13 +301,13 @@ void DS_network_feedforward(DS_Network *const network,
 }
 
 void DS_input_free(DS_Input *const input) {
-  free(input->in);
-  free(input);
+  DS_FREE(input->in);
+  DS_FREE(input);
 }
 
-FLOAT DS_network_cost(DS_Network *const network, FLOAT *const *const xs,
-                      FLOAT *const *const ys, const size_t num_training) {
-  FLOAT cost = 0;
+DS_FLOAT DS_network_cost(DS_Network *const network, DS_FLOAT *const *const xs,
+                         DS_FLOAT *const *const ys, const size_t num_training) {
+  DS_FLOAT cost = 0;
   size_t len_output = network->layer_sizes[network->num_layers - 1];
   for (size_t p = 0; p < num_training; ++p) {
     DS_network_feedforward(network, xs[p]);
@@ -312,22 +315,22 @@ FLOAT DS_network_cost(DS_Network *const network, FLOAT *const *const xs,
         distance_squared(network->result->activations[network->num_layers - 1],
                          ys[p], len_output);
   }
-  return 1. / (2. * (FLOAT)num_training) * cost;
+  return 1. / (2. * (DS_FLOAT)num_training) * cost;
 }
 
 void DS_network_print_activation_layer(const DS_Network *const network) {
-  PRINTF("---------------- OUTPUT PER NEURON ----------------\n");
+  DS_PRINTF("---------------- OUTPUT PER NEURON ----------------\n");
   for (size_t i = 0; i < network->layer_sizes[network->num_layers - 1]; ++i) {
-    PRINTF("%lu => %f \n", i,
-           network->result->activations[network->num_layers - 1][i]);
+    DS_PRINTF("%lu => %f \n", i,
+              network->result->activations[network->num_layers - 1][i]);
   }
-  PRINTF("---------------------------------------------------\n");
+  DS_PRINTF("---------------------------------------------------\n");
 }
 
 struct DS_Backprop {
-  FLOAT **errors;
-  FLOAT **weight_error_sums;
-  FLOAT **bias_error_sums;
+  DS_FLOAT **errors;
+  DS_FLOAT **weight_error_sums;
+  DS_FLOAT **bias_error_sums;
   DS_Network *network;
 };
 
@@ -335,32 +338,33 @@ typedef struct DS_Backprop DS_Backprop;
 
 DS_Backprop *DS_brackprop_create_from_network(DS_Network *const network) {
 
-  DS_Backprop *backprop = MALLOC(sizeof(*backprop));
+  DS_Backprop *backprop = DS_MALLOC(sizeof(*backprop));
   DS_ASSERT(backprop, "Could not create backprop. Out of memory.");
-  backprop->errors = MALLOC(network->num_layers * sizeof(backprop->errors[0]));
+  backprop->errors =
+      DS_MALLOC(network->num_layers * sizeof(backprop->errors[0]));
   DS_ASSERT(backprop->errors, "Could not create backprop. Out of memory.");
-  backprop->weight_error_sums = MALLOC((network->num_layers - 1) *
-                                       sizeof(backprop->weight_error_sums[0]));
+  backprop->weight_error_sums = DS_MALLOC(
+      (network->num_layers - 1) * sizeof(backprop->weight_error_sums[0]));
   DS_ASSERT(backprop->weight_error_sums,
             "Could not create backprop. Out of memory.");
-  backprop->bias_error_sums =
-      MALLOC((network->num_layers - 1) * sizeof(backprop->bias_error_sums[0]));
+  backprop->bias_error_sums = DS_MALLOC((network->num_layers - 1) *
+                                        sizeof(backprop->bias_error_sums[0]));
   DS_ASSERT(backprop->bias_error_sums,
             "Could not create backprop. Out of memory.");
 
   for (size_t l = 0; l < network->num_layers; ++l) {
     backprop->errors[l] =
-        MALLOC(network->layer_sizes[l] * sizeof(backprop->errors[l][0]));
+        DS_MALLOC(network->layer_sizes[l] * sizeof(backprop->errors[l][0]));
     DS_ASSERT(backprop->errors[l], "Could not create backprop. Out of memory.");
   }
   for (size_t l = 0; l < network->num_layers - 1; ++l) {
-    backprop->bias_error_sums[l] = MALLOC(
+    backprop->bias_error_sums[l] = DS_MALLOC(
         network->layer_sizes[l + 1] * sizeof(backprop->bias_error_sums[l][0]));
     DS_ASSERT(backprop->bias_error_sums[l],
               "Could not create backprop. Out of memory.");
     backprop->weight_error_sums[l] =
-        MALLOC(network->layer_sizes[l] * network->layer_sizes[l + 1] *
-               sizeof(backprop->weight_error_sums[l][0]));
+        DS_MALLOC(network->layer_sizes[l] * network->layer_sizes[l + 1] *
+                  sizeof(backprop->weight_error_sums[l][0]));
     DS_ASSERT(backprop->weight_error_sums[l],
               "Could not create backprop. Out of memory.");
   }
@@ -378,26 +382,26 @@ DS_Backprop *DS_brackprop_create(const size_t *const sizes,
 
 void DS_backprop_free(DS_Backprop *const backprop) {
   for (size_t l = 0; l < backprop->network->num_layers; ++l) {
-    free(backprop->errors[l]);
+    DS_FREE(backprop->errors[l]);
   }
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
-    free(backprop->bias_error_sums[l]);
-    free(backprop->weight_error_sums[l]);
+    DS_FREE(backprop->bias_error_sums[l]);
+    DS_FREE(backprop->weight_error_sums[l]);
   }
-  free(backprop->errors);
-  free(backprop->bias_error_sums);
-  free(backprop->weight_error_sums);
+  DS_FREE(backprop->errors);
+  DS_FREE(backprop->bias_error_sums);
+  DS_FREE(backprop->weight_error_sums);
   DS_network_free(backprop->network);
-  free(backprop);
+  DS_FREE(backprop);
 }
 
-static inline FLOAT last_output_error_s(const FLOAT a, const FLOAT z,
-                                        const FLOAT y) {
+static inline DS_FLOAT last_output_error_s(const DS_FLOAT a, const DS_FLOAT z,
+                                           const DS_FLOAT y) {
   return (a - y) * sigmoid_prime_s(z);
 }
 
 static void calculate_output_error(DS_Backprop *const backprop,
-                                   const FLOAT *const y) {
+                                   const DS_FLOAT *const y) {
   const size_t L = backprop->network->num_layers - 1;
   size_t n = backprop->network->layer_sizes[L];
   for (size_t i = 0; i < n; ++i) {
@@ -409,9 +413,9 @@ static void calculate_output_error(DS_Backprop *const backprop,
   for (long long l = L - 1; l >= 0; --l) {
     n = backprop->network->layer_sizes[l + 1];
     const size_t m = backprop->network->layer_sizes[l];
-    const FLOAT *const W = backprop->network->weights[l];
-    const FLOAT *const previous_error = backprop->errors[l + 1];
-    const FLOAT *const z = backprop->network->result->inputs[l];
+    const DS_FLOAT *const W = backprop->network->weights[l];
+    const DS_FLOAT *const previous_error = backprop->errors[l + 1];
+    const DS_FLOAT *const z = backprop->network->result->inputs[l];
 
     for (size_t j = 0; j < m; ++j) {
       backprop->errors[l][j] = 0;
@@ -424,7 +428,8 @@ static void calculate_output_error(DS_Backprop *const backprop,
 }
 
 static void calculate_error_sums(DS_Backprop *const backprop,
-                                 FLOAT *const *const xs, FLOAT *const *const ys,
+                                 DS_FLOAT *const *const xs,
+                                 DS_FLOAT *const *const ys,
                                  size_t num_training) {
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
@@ -437,14 +442,14 @@ static void calculate_error_sums(DS_Backprop *const backprop,
   }
 
   for (size_t d = 0; d < num_training; ++d) {
-    const FLOAT *const x = xs[d];
-    const FLOAT *const y = ys[d];
+    const DS_FLOAT *const x = xs[d];
+    const DS_FLOAT *const y = ys[d];
     DS_network_feedforward(backprop->network, x);
     calculate_output_error(backprop, y);
     for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
       const size_t n = backprop->network->layer_sizes[l + 1];
       const size_t m = backprop->network->layer_sizes[l];
-      const FLOAT *const a = backprop->network->result->activations[l];
+      const DS_FLOAT *const a = backprop->network->result->activations[l];
       for (size_t i = 0; i < n; ++i) {
         backprop->bias_error_sums[l][i] += backprop->errors[l + 1][i];
       }
@@ -459,14 +464,14 @@ static void calculate_error_sums(DS_Backprop *const backprop,
 }
 
 static void update_weights_and_biases(DS_Backprop *const backprop,
-                                      const FLOAT rate) {
+                                      const DS_FLOAT rate) {
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     const size_t n = backprop->network->layer_sizes[l + 1];
     const size_t m = backprop->network->layer_sizes[l];
-    FLOAT *const W = backprop->network->weights[l];
-    FLOAT *const b = backprop->network->biases[l];
-    FLOAT *const weight_update = backprop->weight_error_sums[l];
-    FLOAT *const bias_update = backprop->bias_error_sums[l];
+    DS_FLOAT *const W = backprop->network->weights[l];
+    DS_FLOAT *const b = backprop->network->biases[l];
+    DS_FLOAT *const weight_update = backprop->weight_error_sums[l];
+    DS_FLOAT *const bias_update = backprop->bias_error_sums[l];
 
     for (size_t i = 0; i < n; ++i) {
       for (size_t j = 0; j < m; ++j) {
@@ -477,18 +482,21 @@ static void update_weights_and_biases(DS_Backprop *const backprop,
   }
 }
 
-void DS_backprop_learn_once(DS_Backprop *const backprop, FLOAT *const *const xs,
-                            FLOAT *const *const ys, const size_t num_training,
-                            const FLOAT learing_rate) {
+void DS_backprop_learn_once(DS_Backprop *const backprop,
+                            DS_FLOAT *const *const xs,
+                            DS_FLOAT *const *const ys,
+                            const size_t num_training,
+                            const DS_FLOAT learing_rate) {
   calculate_error_sums(backprop, xs, ys, num_training);
 
-  const FLOAT rate = learing_rate / (FLOAT)num_training;
+  const DS_FLOAT rate = learing_rate / (DS_FLOAT)num_training;
   update_weights_and_biases(backprop, rate);
 }
 
-FLOAT DS_backprop_network_cost(DS_Backprop *const backprop,
-                               FLOAT *const *const xs, FLOAT *const *const ys,
-                               const size_t num_training) {
+DS_FLOAT DS_backprop_network_cost(DS_Backprop *const backprop,
+                                  DS_FLOAT *const *const xs,
+                                  DS_FLOAT *const *const ys,
+                                  const size_t num_training) {
   return DS_network_cost(backprop->network, xs, ys, num_training);
 }
 

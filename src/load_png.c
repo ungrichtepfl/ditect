@@ -17,7 +17,7 @@ DS_Input *DS_load_input_from_grey_png(const char *const image_path) {
 
   image.format = PNG_FORMAT_GRAY;
   const size_t image_size = PNG_IMAGE_SIZE(image);
-  png_bytep const buffer = MALLOC(image_size);
+  png_bytep const buffer = DS_MALLOC(image_size);
   if (!buffer) {
     png_image_free(&image);
     DS_ASSERT(false, "Could not allocate input buffer, out of memory.");
@@ -28,12 +28,12 @@ DS_Input *DS_load_input_from_grey_png(const char *const image_path) {
     return NULL;
   }
 
-  FLOAT *const in = MALLOC(image_size * sizeof(in[0]));
+  DS_FLOAT *const in = DS_MALLOC(image_size * sizeof(in[0]));
   for (size_t i = 0; i < image_size; ++i)
-    in[i] = (FLOAT)buffer[i] / MAX_PNG_GRAY_VALUE;
+    in[i] = (DS_FLOAT)buffer[i] / MAX_PNG_GRAY_VALUE;
   free(buffer);
 
-  DS_Input *const input = MALLOC(sizeof(*input));
+  DS_Input *const input = DS_MALLOC(sizeof(*input));
   DS_ASSERT(input, "Could not allocate input struct, out of memory.");
   input->in = in;
   input->len = image_size;

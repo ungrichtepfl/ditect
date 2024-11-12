@@ -4,7 +4,7 @@
 
 void test_idx(void) {
 
-  FLOAT W[6] = {1., 2., 3., 4., 5., 6.};
+  DS_FLOAT W[6] = {1., 2., 3., 4., 5., 6.};
   assert_eqf(W[IDX(0, 1, 3)], 2., "idx 3 columns first row");
   assert_eqf(W[IDX(1, 2, 3)], 6., "idx 3 columns second row");
   assert_eqf(W[IDX(0, 1, 2)], 2., "idx 2 columns first row");
@@ -14,11 +14,11 @@ void test_idx(void) {
 
 void test_dot_add_identity(void) {
 
-  FLOAT W[4] = {1., 0., 0., 1.};
-  FLOAT x[2] = {2., 3.};
-  FLOAT b[2] = {3., 7.};
-  FLOAT out[2] = {0};
-  FLOAT res[2] = {5., 10.};
+  DS_FLOAT W[4] = {1., 0., 0., 1.};
+  DS_FLOAT x[2] = {2., 3.};
+  DS_FLOAT b[2] = {3., 7.};
+  DS_FLOAT out[2] = {0};
+  DS_FLOAT res[2] = {5., 10.};
   dot_add(&W[0], &x[0], &b[0], &out[0], 2, 2);
   for (int i = 0; i < 2; ++i)
     assert_eqf(out[i], res[i], "Dot add identity index %d", i);
@@ -26,11 +26,11 @@ void test_dot_add_identity(void) {
 
 void test_dot_add_sum(void) {
 
-  FLOAT W[4] = {1., 1., 1., 1.};
-  FLOAT x[2] = {2., 3.};
-  FLOAT b[2] = {3., 7.};
-  FLOAT out[2] = {0};
-  FLOAT res[2] = {8., 12.};
+  DS_FLOAT W[4] = {1., 1., 1., 1.};
+  DS_FLOAT x[2] = {2., 3.};
+  DS_FLOAT b[2] = {3., 7.};
+  DS_FLOAT out[2] = {0};
+  DS_FLOAT res[2] = {8., 12.};
   dot_add(&W[0], &x[0], &b[0], &out[0], 2, 2);
   for (int i = 0; i < 2; ++i)
     assert_eqf(out[i], res[i], "Dot add sum index %d", i);
@@ -38,11 +38,11 @@ void test_dot_add_sum(void) {
 
 void test_dot_add_permutation(void) {
 
-  FLOAT W[4] = {0., 1., 1., 0.};
-  FLOAT x[2] = {2., 3.};
-  FLOAT b[2] = {3., 7.};
-  FLOAT out[2] = {0};
-  FLOAT res[2] = {6., 9.};
+  DS_FLOAT W[4] = {0., 1., 1., 0.};
+  DS_FLOAT x[2] = {2., 3.};
+  DS_FLOAT b[2] = {3., 7.};
+  DS_FLOAT out[2] = {0};
+  DS_FLOAT res[2] = {6., 9.};
   dot_add(&W[0], &x[0], &b[0], &out[0], 2, 2);
   for (int i = 0; i < 2; ++i)
     assert_eqf(out[i], res[i], "Dot add permutation index %d", i);
@@ -50,18 +50,18 @@ void test_dot_add_permutation(void) {
 
 void test_dot_add_non_symmetric(void) {
 
-  FLOAT W[6] = {1., 2., 3., 4., 5., 6.};
-  FLOAT x[3] = {7., 8., 9.};
-  FLOAT b[2] = {1., 2.};
-  FLOAT out[2] = {0};
-  FLOAT res[2] = {51., 124.};
+  DS_FLOAT W[6] = {1., 2., 3., 4., 5., 6.};
+  DS_FLOAT x[3] = {7., 8., 9.};
+  DS_FLOAT b[2] = {1., 2.};
+  DS_FLOAT out[2] = {0};
+  DS_FLOAT res[2] = {51., 124.};
   dot_add(&W[0], &x[0], &b[0], &out[0], 2, 3);
   for (int i = 0; i < 2; ++i)
     assert_eqf(out[i], res[i], "Dot add non-symmetric index %d", i);
 }
 
 void test_sigmoid_single(void) {
-  FLOAT z = 0;
+  DS_FLOAT z = 0;
   assert_eqf(sigmoid_s(z), 0.5, "Single sigmoid zero");
   z = 0.3;
   assert_eqf(sigmoid_s(z), 0.5744425168116848, "Single sigmoid positive");
@@ -70,17 +70,17 @@ void test_sigmoid_single(void) {
 }
 
 void test_sigmoid_multi(void) {
-  FLOAT z[3] = {0., 0.3, -0.4};
-  FLOAT res[3] = {0.5, 0.5744425168116848, 0.40131233988751425};
+  DS_FLOAT z[3] = {0., 0.3, -0.4};
+  DS_FLOAT res[3] = {0.5, 0.5744425168116848, 0.40131233988751425};
 
-  FLOAT out[3] = {0};
+  DS_FLOAT out[3] = {0};
   sigmoid(&z[0], &out[0], 3);
   for (int i = 0; i < 3; ++i)
     assert_eqf(out[i], res[i], "Multi sigmoid value %d", i);
 }
 
 void test_sigmoid_prime_single(void) {
-  FLOAT z = 0;
+  DS_FLOAT z = 0;
   assert_eqf(sigmoid_prime_s(z), 0.25, "Single sigmoid_prime zero");
   z = 0.3;
   assert_eqf(sigmoid_prime_s(z), 0.24445831169074203,
@@ -91,14 +91,14 @@ void test_sigmoid_prime_single(void) {
 }
 
 void test_distance_squared_zero(void) {
-  FLOAT x[3] = {1., 2., 3.};
-  FLOAT y[3] = {1., 2., 3.};
+  DS_FLOAT x[3] = {1., 2., 3.};
+  DS_FLOAT y[3] = {1., 2., 3.};
   assert_eqf(distance_squared(&x[0], &y[0], 3), 0., "Zero distance");
 }
 
 void test_distance_squared(void) {
-  FLOAT x[3] = {1., 2., -3.};
-  FLOAT y[3] = {-3., 1., 2.};
+  DS_FLOAT x[3] = {1., 2., -3.};
+  DS_FLOAT y[3] = {-3., 1., 2.};
   assert_eqf(distance_squared(&x[0], &y[0], 3), 42., "Zero distance");
 }
 
@@ -123,10 +123,10 @@ void check_random_network(const DS_Network *const network,
     size_t m = network->layer_sizes[l];
     size_t n = network->layer_sizes[l + 1];
     for (size_t i = 0; i < n; ++i) {
-      volatile FLOAT b = network->biases[l][i];
+      volatile DS_FLOAT b = network->biases[l][i];
       (void)b;
       for (size_t j = 0; j < m; ++j) {
-        volatile FLOAT w = network->weights[l][IDX(i, j, m)];
+        volatile DS_FLOAT w = network->weights[l][IDX(i, j, m)];
         (void)w;
       }
     }
@@ -134,9 +134,9 @@ void check_random_network(const DS_Network *const network,
   for (size_t l = 0; l < num_layers; ++l) {
     size_t n = network->layer_sizes[l];
     for (size_t i = 0; i < n; ++i) {
-      volatile FLOAT a = network->result->activations[l][i];
+      volatile DS_FLOAT a = network->result->activations[l][i];
       (void)a;
-      volatile FLOAT in = network->result->inputs[l][i];
+      volatile DS_FLOAT in = network->result->inputs[l][i];
       (void)in;
     }
   }
@@ -156,13 +156,13 @@ void test_network_creation_random(void) {
 #define LAYER_1 2
 #define LAYER_2 3
 #define LAYER_3 2
-const FLOAT WEIGHT_1[LAYER_1 * LAYER_2] = {.1, .2, .3, .4, .5, .6};
-const FLOAT WEIGHT_2[LAYER_2 * LAYER_3] = {.6, .5, .4, .3, .2, .1};
-const FLOAT BIAS_1[LAYER_2] = {.1, .2, .3};
-const FLOAT BIAS_2[LAYER_3] = {.4, .5};
+const DS_FLOAT WEIGHT_1[LAYER_1 * LAYER_2] = {.1, .2, .3, .4, .5, .6};
+const DS_FLOAT WEIGHT_2[LAYER_2 * LAYER_3] = {.6, .5, .4, .3, .2, .1};
+const DS_FLOAT BIAS_1[LAYER_2] = {.1, .2, .3};
+const DS_FLOAT BIAS_2[LAYER_3] = {.4, .5};
 const size_t LAYER_SIZES[NUM_LAYERS] = {LAYER_1, LAYER_2, LAYER_3};
-const FLOAT *WEIGHTS[NUM_LAYERS - 1] = {&WEIGHT_1[0], &WEIGHT_2[0]};
-const FLOAT *BIASES[NUM_LAYERS - 1] = {&BIAS_1[0], &BIAS_2[0]};
+const DS_FLOAT *WEIGHTS[NUM_LAYERS - 1] = {&WEIGHT_1[0], &WEIGHT_2[0]};
+const DS_FLOAT *BIASES[NUM_LAYERS - 1] = {&BIAS_1[0], &BIAS_2[0]};
 char *OUTPUT_LABELS[LAYER_3] = {"First Label", "Second Label"};
 
 DS_Network *create_test_network(void) {
@@ -212,15 +212,15 @@ void test_create_test_network(void) {
 
 void test_create_test_network_owned(void) {
 
-  size_t *sizes = MALLOC(NUM_LAYERS * sizeof(sizes[0]));
+  size_t *sizes = DS_MALLOC(NUM_LAYERS * sizeof(sizes[0]));
   memcpy(sizes, LAYER_SIZES, NUM_LAYERS * sizeof(sizes[0]));
-  FLOAT **biases = MALLOC((NUM_LAYERS - 1) * sizeof(biases[0]));
-  FLOAT **weights = MALLOC((NUM_LAYERS - 1) * sizeof(weights[0]));
+  DS_FLOAT **biases = DS_MALLOC((NUM_LAYERS - 1) * sizeof(biases[0]));
+  DS_FLOAT **weights = DS_MALLOC((NUM_LAYERS - 1) * sizeof(weights[0]));
   for (size_t l = 0; l < NUM_LAYERS - 1; ++l) {
-    biases[l] = MALLOC(LAYER_SIZES[l + 1] * sizeof(biases[l][0]));
+    biases[l] = DS_MALLOC(LAYER_SIZES[l + 1] * sizeof(biases[l][0]));
     memcpy(biases[l], BIASES[l], LAYER_SIZES[l + 1] * sizeof(biases[l][0]));
     weights[l] =
-        MALLOC(LAYER_SIZES[l] * LAYER_SIZES[l + 1] * sizeof(weights[l][0]));
+        DS_MALLOC(LAYER_SIZES[l] * LAYER_SIZES[l + 1] * sizeof(weights[l][0]));
     memcpy(weights[l], WEIGHTS[l],
            LAYER_SIZES[l] * LAYER_SIZES[l + 1] * sizeof(weights[l][0]));
   }
@@ -233,17 +233,18 @@ void test_create_test_network_owned(void) {
 
 void test_network_feedforward(void) {
   DS_Network *network = create_test_network();
-  const FLOAT input[LAYER_1] = {.1, .2};
-  const FLOAT res_input_1[LAYER_1] = {.1, .2};
-  const FLOAT res_activation_1[LAYER_1] = {.1, .2};
-  const FLOAT res_input_2[LAYER_2] = {0.15, 0.31, 0.47};
-  const FLOAT res_activation_2[LAYER_2] = {0.53742985, 0.57688526, 0.61538376};
-  const FLOAT res_input_3[LAYER_3] = {1.25705404, 0.83814438};
-  const FLOAT res_activation_3[LAYER_3] = {0.77851856, 0.69807426};
+  const DS_FLOAT input[LAYER_1] = {.1, .2};
+  const DS_FLOAT res_input_1[LAYER_1] = {.1, .2};
+  const DS_FLOAT res_activation_1[LAYER_1] = {.1, .2};
+  const DS_FLOAT res_input_2[LAYER_2] = {0.15, 0.31, 0.47};
+  const DS_FLOAT res_activation_2[LAYER_2] = {0.53742985, 0.57688526,
+                                              0.61538376};
+  const DS_FLOAT res_input_3[LAYER_3] = {1.25705404, 0.83814438};
+  const DS_FLOAT res_activation_3[LAYER_3] = {0.77851856, 0.69807426};
 
-  const FLOAT *res_inputs[NUM_LAYERS] = {&res_input_1[0], &res_input_2[0],
-                                         &res_input_3[0]};
-  const FLOAT *res_activations[NUM_LAYERS] = {
+  const DS_FLOAT *res_inputs[NUM_LAYERS] = {&res_input_1[0], &res_input_2[0],
+                                            &res_input_3[0]};
+  const DS_FLOAT *res_activations[NUM_LAYERS] = {
       &res_activation_1[0], &res_activation_2[0], &res_activation_3[0]};
 
   DS_network_feedforward(network, &input[0]);
@@ -261,9 +262,9 @@ void test_network_feedforward(void) {
 }
 
 void test_network_backprop_last_error(void) {
-  FLOAT a = 0.3;
-  FLOAT z = 0.5;
-  FLOAT y = 0.3;
+  DS_FLOAT a = 0.3;
+  DS_FLOAT z = 0.5;
+  DS_FLOAT y = 0.3;
   assert_eqf(last_output_error_s(a, z, y), 0., "Last output error: No error.");
 
   a = 0.8;
@@ -285,10 +286,10 @@ void check_backprop_segfauls(const DS_Backprop *const backprop) {
     size_t m = backprop->network->layer_sizes[l];
     size_t n = backprop->network->layer_sizes[l + 1];
     for (size_t i = 0; i < n; ++i) {
-      volatile FLOAT b = backprop->bias_error_sums[l][i];
+      volatile DS_FLOAT b = backprop->bias_error_sums[l][i];
       (void)b;
       for (size_t j = 0; j < m; ++j) {
-        volatile FLOAT w = backprop->weight_error_sums[l][IDX(i, j, m)];
+        volatile DS_FLOAT w = backprop->weight_error_sums[l][IDX(i, j, m)];
         (void)w;
       }
     }
@@ -296,7 +297,7 @@ void check_backprop_segfauls(const DS_Backprop *const backprop) {
   for (size_t l = 0; l < backprop->network->num_layers; ++l) {
     size_t n = backprop->network->layer_sizes[l];
     for (size_t i = 0; i < n; ++i) {
-      volatile FLOAT e = backprop->errors[l][i];
+      volatile DS_FLOAT e = backprop->errors[l][i];
       (void)e;
     }
   }
@@ -324,23 +325,23 @@ void test_backprop_create_from_network(void) {
 void test_network_backprop_error_sums_single_input(void) {
   DS_Backprop *backprop =
       DS_brackprop_create_from_network(create_test_network());
-  FLOAT learning_rate = 1;
+  DS_FLOAT learning_rate = 1;
   size_t num_training = 1;
-  FLOAT x[LAYER_1] = {0.2, 0.1};
-  FLOAT y[LAYER_1] = {0.5, -0.3};
-  FLOAT *xs[1] = {&x[0]};
-  FLOAT *ys[1] = {&y[0]};
+  DS_FLOAT x[LAYER_1] = {0.2, 0.1};
+  DS_FLOAT y[LAYER_1] = {0.5, -0.3};
+  DS_FLOAT *xs[1] = {&x[0]};
+  DS_FLOAT *ys[1] = {&y[0]};
 
-  FLOAT error_bias_1[LAYER_2] = {0.02287103, 0.01615626, 0.0095477};
-  FLOAT error_bias_2[LAYER_3] = {0.04801298, 0.21041785};
-  FLOAT error_weight_1[LAYER_1 * LAYER_2] = {
+  DS_FLOAT error_bias_1[LAYER_2] = {0.02287103, 0.01615626, 0.0095477};
+  DS_FLOAT error_bias_2[LAYER_3] = {0.04801298, 0.21041785};
+  DS_FLOAT error_weight_1[LAYER_1 * LAYER_2] = {
       0.00457421, 0.0022871, 0.00323125, 0.00161563, 0.00190954, 0.00095477};
-  FLOAT error_weight_2[LAYER_2 * LAYER_3] = {
+  DS_FLOAT error_weight_2[LAYER_2 * LAYER_3] = {
       0.0256842, 0.0275807, 0.02943264, 0.11256154, 0.12087296, 0.12898913};
 
-  FLOAT *error_biases[NUM_LAYERS - 1] = {&error_bias_1[0], &error_bias_2[0]};
-  FLOAT *error_weights[NUM_LAYERS - 1] = {&error_weight_1[0],
-                                          &error_weight_2[0]};
+  DS_FLOAT *error_biases[NUM_LAYERS - 1] = {&error_bias_1[0], &error_bias_2[0]};
+  DS_FLOAT *error_weights[NUM_LAYERS - 1] = {&error_weight_1[0],
+                                             &error_weight_2[0]};
 
   DS_backprop_learn_once(backprop, xs, ys, num_training, learning_rate);
 
@@ -364,24 +365,24 @@ void test_network_backprop_error_sums_single_input(void) {
 void test_network_backprop_double_input(void) {
   DS_Backprop *backprop =
       DS_brackprop_create_from_network(create_test_network());
-  FLOAT learning_rate = 0.8;
+  DS_FLOAT learning_rate = 0.8;
   size_t num_training = 2;
 
-  FLOAT x1[LAYER_1] = {0.3, 0.2};
-  FLOAT x2[LAYER_1] = {0.4, 0.5};
-  FLOAT y1[LAYER_1] = {0.1, -0.2};
-  FLOAT y2[LAYER_1] = {-0.3, 0.7};
-  FLOAT *xs[2] = {&x1[0], &x2[0]};
-  FLOAT *ys[2] = {&y1[0], &y2[0]};
-  FLOAT bias_1[LAYER_2] = {0.07672889, 0.1822576, 0.28776812};
-  FLOAT bias_2[LAYER_3] = {0.28116617, 0.42410679};
-  FLOAT weight_1[LAYER_1 * LAYER_2] = {0.09194743, 0.19213205, 0.29383053,
-                                       0.39391128, 0.49571109, 0.5956956};
-  FLOAT weight_2[LAYER_2 * LAYER_3] = {0.53429254, 0.42713372, 0.32038983,
-                                       0.25883112, 0.15510289, 0.05150874};
+  DS_FLOAT x1[LAYER_1] = {0.3, 0.2};
+  DS_FLOAT x2[LAYER_1] = {0.4, 0.5};
+  DS_FLOAT y1[LAYER_1] = {0.1, -0.2};
+  DS_FLOAT y2[LAYER_1] = {-0.3, 0.7};
+  DS_FLOAT *xs[2] = {&x1[0], &x2[0]};
+  DS_FLOAT *ys[2] = {&y1[0], &y2[0]};
+  DS_FLOAT bias_1[LAYER_2] = {0.07672889, 0.1822576, 0.28776812};
+  DS_FLOAT bias_2[LAYER_3] = {0.28116617, 0.42410679};
+  DS_FLOAT weight_1[LAYER_1 * LAYER_2] = {0.09194743, 0.19213205, 0.29383053,
+                                          0.39391128, 0.49571109, 0.5956956};
+  DS_FLOAT weight_2[LAYER_2 * LAYER_3] = {0.53429254, 0.42713372, 0.32038983,
+                                          0.25883112, 0.15510289, 0.05150874};
 
-  FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
-  FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
+  DS_FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
+  DS_FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
 
   DS_backprop_learn_once(backprop, xs, ys, num_training, learning_rate);
 
@@ -405,25 +406,25 @@ void test_network_backprop_double_input(void) {
 void test_network_backprop_double_input_twice(void) {
   DS_Backprop *backprop =
       DS_brackprop_create_from_network(create_test_network());
-  FLOAT learning_rate = 0.8;
+  DS_FLOAT learning_rate = 0.8;
   size_t num_training = 2;
 
-  FLOAT x1[LAYER_1] = {0.3, 0.2};
-  FLOAT x2[LAYER_1] = {0.4, 0.5};
-  FLOAT y1[LAYER_1] = {0.1, -0.2};
-  FLOAT y2[LAYER_1] = {-0.3, 0.7};
-  FLOAT *xs[2] = {&x1[0], &x2[0]};
-  FLOAT *ys[2] = {&y1[0], &y2[0]};
+  DS_FLOAT x1[LAYER_1] = {0.3, 0.2};
+  DS_FLOAT x2[LAYER_1] = {0.4, 0.5};
+  DS_FLOAT y1[LAYER_1] = {0.1, -0.2};
+  DS_FLOAT y2[LAYER_1] = {-0.3, 0.7};
+  DS_FLOAT *xs[2] = {&x1[0], &x2[0]};
+  DS_FLOAT *ys[2] = {&y1[0], &y2[0]};
 
-  FLOAT bias_1[LAYER_2] = {0.05485079, 0.16633528, 0.27771601};
-  FLOAT bias_2[LAYER_3] = {0.15204091, 0.34987652};
-  FLOAT weight_1[LAYER_1 * LAYER_2] = {0.08434973, 0.18465363, 0.28826394,
-                                       0.38835713, 0.49214933, 0.59204678};
-  FLOAT weight_2[LAYER_2 * LAYER_3] = {0.46380924, 0.34860201, 0.23426936,
-                                       0.21911876, 0.11167309, 0.00448532};
+  DS_FLOAT bias_1[LAYER_2] = {0.05485079, 0.16633528, 0.27771601};
+  DS_FLOAT bias_2[LAYER_3] = {0.15204091, 0.34987652};
+  DS_FLOAT weight_1[LAYER_1 * LAYER_2] = {0.08434973, 0.18465363, 0.28826394,
+                                          0.38835713, 0.49214933, 0.59204678};
+  DS_FLOAT weight_2[LAYER_2 * LAYER_3] = {0.46380924, 0.34860201, 0.23426936,
+                                          0.21911876, 0.11167309, 0.00448532};
 
-  FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
-  FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
+  DS_FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
+  DS_FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
 
   DS_backprop_learn_once(backprop, xs, ys, num_training, learning_rate);
   DS_backprop_learn_once(backprop, xs, ys, num_training, learning_rate);
