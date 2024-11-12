@@ -10,17 +10,139 @@
 #ifndef SEE_MALLOC
 #define SEE_MALLOC malloc
 #endif
+#ifndef SEE_CALLOC
+#define SEE_CALLOC calloc
+#endif
 #ifndef SEE_FREE
 #define SEE_FREE free
 #endif
 
-static bool _test_failed = false;
-static char *_current_test = NULL;
+typedef struct _Allocation {
+  void *ptr;
+  size_t size;
+  struct _Allocation *next;
+} _Allocation;
+
+static _Allocation *allocations = NULL;
+static int _free_untracked = 0;
 
 #define _RED() printf("\033[0;31m")
 #define _GREEN() printf("\033[0;32m")
 #define _YELLOW() printf("\033[0;33m")
+#define _BLUE() printf("\033[0;34m")
 #define _RESET() printf("\033[0m")
+
+void _add_allocation(void *ptr, size_t size) {
+  _Allocation *new_alloc = SEE_MALLOC(sizeof(*new_alloc));
+  if (!new_alloc) {
+    _YELLOW();
+    printf("WARNING: Cannot track allocations anymore in debug malloc and "
+           "calloc. Out of memory.\n");
+    _RESET();
+    return;
+  }
+  new_alloc->ptr = ptr;
+  new_alloc->size = size;
+  new_alloc->next = allocations;
+  allocations = new_alloc;
+}
+
+// Helper function to remove an allocation record
+void _remove_allocation(void *ptr) {
+  _Allocation **current = &allocations;
+  while (*current) {
+    if ((*current)->ptr == ptr) {
+      _Allocation *to_free = *current;
+      *current = (*current)->next;
+      SEE_FREE(to_free);
+      return;
+    }
+    current = &(*current)->next;
+  }
+  // If the pointer is not found, it means an attempt to free untracked memory
+  ++_free_untracked;
+  _RED();
+  printf("ERROR: Attempted to free untracked memory: %p\n", ptr);
+  _RESET();
+}
+
+void *_debug_malloc(size_t size) {
+  void *ptr = SEE_MALLOC(size);
+  if (ptr) {
+    _add_allocation(ptr, size);
+  }
+  return ptr;
+}
+
+void *_debug_calloc(size_t num, size_t size) {
+  void *ptr = SEE_CALLOC(num, size);
+  if (ptr) {
+    _add_allocation(ptr, num * size);
+  }
+  return ptr;
+}
+
+void _debug_free(void *ptr) {
+  if (ptr) {
+    _remove_allocation(ptr);
+    SEE_FREE(ptr);
+  }
+}
+
+int _check_memory(void) {
+  _Allocation *current = allocations;
+  int leaks = 0;
+  size_t total_bytes = 0;
+  while (current) {
+    _RED();
+    printf("ERROR: Memory leak detected: %p, size: %zu bytes\n", current->ptr,
+           current->size);
+    _RESET();
+    ++leaks;
+    total_bytes += current->size;
+    current = current->next;
+  }
+  if (leaks == 0) {
+    _GREEN();
+    printf("SUCCESS: No memory leaks detected!\n");
+    _RESET();
+  } else if (leaks == 1) {
+    _RED();
+    printf("ERROR: 1 memory leak detected (%lu bytes)!\n", total_bytes);
+    _RESET();
+  } else {
+    _RED();
+    printf("ERROR: %d memory leaks detected (%lu bytes in total)!\n", leaks,
+           total_bytes);
+    _RESET();
+  }
+  if (_free_untracked == 0) {
+    _GREEN();
+    printf("SUCCESS: No untracked frees detected!\n");
+    _RESET();
+  } else if (_free_untracked == 1) {
+    _RED();
+    printf("ERROR: 1 untracked free!\n");
+    _RESET();
+  } else {
+    _RED();
+    printf("ERROR: %d untracked frees detected!\n", _free_untracked);
+    _RESET();
+  }
+  if (leaks > 0 || _free_untracked > 0) {
+    _BLUE();
+    printf("NOTE: Use valgrind or debugger to find file and line number.\n");
+    _RESET();
+  }
+  return leaks + _free_untracked;
+}
+
+#define SEE_DEBUG_MALLOC _debug_malloc
+#define SEE_DEBUG_CALLOC _debug_calloc
+#define SEE_DEBUG_FREE _debug_free
+
+static bool _test_failed = false;
+static char *_current_test = NULL;
 
 #define _STR_ARGS(...) #__VA_ARGS__
 
@@ -109,7 +231,8 @@ static inline int _run_tests(void (*tests[])(void), const unsigned long n,
   unsigned long test_names_str_len = strlen(test_names_str) + 1;
   char *test_names_str_buffer = SEE_MALLOC(test_names_str_len * sizeof(char));
   if (!test_names_str_buffer) {
-    fprintf(stderr, "Could not run tests. Out of memory");
+    fprintf(stderr, "Could not run tests. Could not allocate memory to "
+                    "stringify all the test names. Out of memory.");
     return 1;
   }
   strcpy(test_names_str_buffer, test_names_str);
@@ -165,7 +288,9 @@ static inline int _run_tests(void (*tests[])(void), const unsigned long n,
   int main(void) {                                                             \
     void (*tests[])(void) = {__VA_ARGS__};                                     \
     const unsigned long n = sizeof(tests) / sizeof(tests[0]);                  \
-    return _run_tests(tests, n, _STR_ARGS(__VA_ARGS__));                       \
+    int failed_test = _run_tests(tests, n, _STR_ARGS(__VA_ARGS__));            \
+    int memory_issues = _check_memory();                                       \
+    return failed_test + memory_issues;                                        \
   }
 
 #endif // SEE_H

@@ -1,5 +1,11 @@
-#include "deepsea.c"
+
 #include "see.h"
+
+#define DS_MALLOC SEE_DEBUG_MALLOC
+#define DS_FREE SEE_DEBUG_FREE
+#define DS_CALLOC SEE_DEBUG_CALLOC
+
+#include "deepsea.c"
 #include <stdio.h>
 
 void test_idx(void) {
