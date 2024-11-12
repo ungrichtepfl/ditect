@@ -29,7 +29,32 @@ typedef struct DS_Network DS_Network;
 
 typedef struct DS_Backprop DS_Backprop;
 
+typedef struct {
+  FLOAT *input;
+  size_t length;
+} DS_Input;
+
+void DS_input_free(DS_Input *const input);
+
 FLOAT *DS_randn(const size_t n);
+
+#define DS_ERROR(...)                                                          \
+  do {                                                                         \
+    FPRINTF(stderr,                                                            \
+            "ERROR ("__FILE__                                                  \
+            ": %d): ",                                                         \
+            __LINE__);                                                         \
+    FPRINTF(stderr, __VA_ARGS__);                                              \
+    FPRINTF(stderr, "\n");                                                     \
+  } while (0)
+
+#define DS_ASSERT(cond, ...)                                                   \
+  do {                                                                         \
+    if (!(cond)) {                                                             \
+      DS_ERROR(__VA_ARGS__);                                                   \
+      EXIT(1);                                                                 \
+    }                                                                          \
+  } while (0)
 
 void DS_randno(FLOAT *const values, const size_t n);
 

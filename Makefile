@@ -36,7 +36,7 @@ endif
 CPPFLAGS := -I$(INC_DIR) -MMD -MP
 CFLAGS   := -Wall -Werror -Wextra -Wpedantic $(OPTFLAG) $(C_RAYLIB)
 LDFLAGS  := -L$(LIB_DIR) $(OPTFLAG)
-LDLIBS   := -lm $(LD_RAYLIB)
+LDLIBS   := -lm $(LD_RAYLIB) -lpng
 
 define DEPENDABLE_VAR
 .PHONY: phony

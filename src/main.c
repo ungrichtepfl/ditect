@@ -1,4 +1,5 @@
 #include "deepsea.h"
+#include "load_png.h"
 #include "parser.h"
 #include <assert.h>
 #include <raylib.h>
@@ -15,8 +16,21 @@
 #define TARGET_FPS 60
 #define NUM_TRAINING 2
 
-void train(const char *data_path) {
-  (void) data_path;
+void train(const char *const data_path) {
+
+  DS_Input *buffer = DS_load_input_from_grey_png(data_path);
+  if (!buffer) {
+    exit(1);
+  }
+  printf("Length: %lu\n", buffer->length);
+  for (size_t i = 0; i < 28; ++i) {
+    for (size_t j = 0; j < 28; ++j) {
+      printf("%.2f ", buffer->input[i + 28 * j]);
+    }
+    printf("\n");
+  }
+  DS_input_free(buffer);
+
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
   FLOAT learing_rate = 0.01;
   DS_Backprop *backprop = DS_brackprop_create(layer_sizes, NUM_LAYERS);
