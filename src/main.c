@@ -1,5 +1,5 @@
 #include "deepsea.h"
-#include "load_png.h"
+#include "deepsea_png.h"
 #include "parser.h"
 #include <assert.h>
 #include <raylib.h>

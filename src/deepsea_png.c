@@ -1,4 +1,4 @@
-#include "load_png.h"
+#include "deepsea_png.h"
 
 #include <stdlib.h>
 #include <string.h>
