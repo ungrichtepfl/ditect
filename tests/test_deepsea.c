@@ -1,4 +1,3 @@
-
 #include "see.h"
 
 #define DS_MALLOC SEE_DEBUG_MALLOC
@@ -11,11 +10,11 @@
 void test_idx(void) {
 
   DS_FLOAT W[6] = {1., 2., 3., 4., 5., 6.};
-  assert_eqf(W[IDX(0, 1, 3)], 2., "idx 3 columns first row");
-  assert_eqf(W[IDX(1, 2, 3)], 6., "idx 3 columns second row");
-  assert_eqf(W[IDX(0, 1, 2)], 2., "idx 2 columns first row");
-  assert_eqf(W[IDX(1, 0, 2)], 3., "idx 2 columns second row");
-  assert_eqf(W[IDX(2, 0, 2)], 5., "idx 2 columns second row");
+  SEE_assert_eqf(W[IDX(0, 1, 3)], 2., "idx 3 columns first row");
+  SEE_assert_eqf(W[IDX(1, 2, 3)], 6., "idx 3 columns second row");
+  SEE_assert_eqf(W[IDX(0, 1, 2)], 2., "idx 2 columns first row");
+  SEE_assert_eqf(W[IDX(1, 0, 2)], 3., "idx 2 columns second row");
+  SEE_assert_eqf(W[IDX(2, 0, 2)], 5., "idx 2 columns second row");
 }
 
 void test_dot_add_identity(void) {
@@ -27,7 +26,7 @@ void test_dot_add_identity(void) {
   DS_FLOAT res[2] = {5., 10.};
   dot_add(&W[0], &x[0], &b[0], &out[0], 2, 2);
   for (int i = 0; i < 2; ++i)
-    assert_eqf(out[i], res[i], "Dot add identity index %d", i);
+    SEE_assert_eqf(out[i], res[i], "Dot add identity index %d", i);
 }
 
 void test_dot_add_sum(void) {
@@ -39,7 +38,7 @@ void test_dot_add_sum(void) {
   DS_FLOAT res[2] = {8., 12.};
   dot_add(&W[0], &x[0], &b[0], &out[0], 2, 2);
   for (int i = 0; i < 2; ++i)
-    assert_eqf(out[i], res[i], "Dot add sum index %d", i);
+    SEE_assert_eqf(out[i], res[i], "Dot add sum index %d", i);
 }
 
 void test_dot_add_permutation(void) {
@@ -51,7 +50,7 @@ void test_dot_add_permutation(void) {
   DS_FLOAT res[2] = {6., 9.};
   dot_add(&W[0], &x[0], &b[0], &out[0], 2, 2);
   for (int i = 0; i < 2; ++i)
-    assert_eqf(out[i], res[i], "Dot add permutation index %d", i);
+    SEE_assert_eqf(out[i], res[i], "Dot add permutation index %d", i);
 }
 
 void test_dot_add_non_symmetric(void) {
@@ -63,16 +62,16 @@ void test_dot_add_non_symmetric(void) {
   DS_FLOAT res[2] = {51., 124.};
   dot_add(&W[0], &x[0], &b[0], &out[0], 2, 3);
   for (int i = 0; i < 2; ++i)
-    assert_eqf(out[i], res[i], "Dot add non-symmetric index %d", i);
+    SEE_assert_eqf(out[i], res[i], "Dot add non-symmetric index %d", i);
 }
 
 void test_sigmoid_single(void) {
   DS_FLOAT z = 0;
-  assert_eqf(sigmoid_s(z), 0.5, "Single sigmoid zero");
+  SEE_assert_eqf(sigmoid_s(z), 0.5, "Single sigmoid zero");
   z = 0.3;
-  assert_eqf(sigmoid_s(z), 0.5744425168116848, "Single sigmoid positive");
+  SEE_assert_eqf(sigmoid_s(z), 0.5744425168116848, "Single sigmoid positive");
   z = -0.4;
-  assert_eqf(sigmoid_s(z), 0.40131233988751425, "Single sigmoid negative");
+  SEE_assert_eqf(sigmoid_s(z), 0.40131233988751425, "Single sigmoid negative");
 }
 
 void test_sigmoid_multi(void) {
@@ -82,46 +81,47 @@ void test_sigmoid_multi(void) {
   DS_FLOAT out[3] = {0};
   sigmoid(&z[0], &out[0], 3);
   for (int i = 0; i < 3; ++i)
-    assert_eqf(out[i], res[i], "Multi sigmoid value %d", i);
+    SEE_assert_eqf(out[i], res[i], "Multi sigmoid value %d", i);
 }
 
 void test_sigmoid_prime_single(void) {
   DS_FLOAT z = 0;
-  assert_eqf(sigmoid_prime_s(z), 0.25, "Single sigmoid_prime zero");
+  SEE_assert_eqf(sigmoid_prime_s(z), 0.25, "Single sigmoid_prime zero");
   z = 0.3;
-  assert_eqf(sigmoid_prime_s(z), 0.24445831169074203,
-             "Single sigmoid_prime positive");
+  SEE_assert_eqf(sigmoid_prime_s(z), 0.24445831169074203,
+                 "Single sigmoid_prime positive");
   z = -0.4;
-  assert_eqf(sigmoid_prime_s(z), 0.24026074574152248,
-             "Single sigmoid_prime negative");
+  SEE_assert_eqf(sigmoid_prime_s(z), 0.24026074574152248,
+                 "Single sigmoid_prime negative");
 }
 
 void test_distance_squared_zero(void) {
   DS_FLOAT x[3] = {1., 2., 3.};
   DS_FLOAT y[3] = {1., 2., 3.};
-  assert_eqf(distance_squared(&x[0], &y[0], 3), 0., "Zero distance");
+  SEE_assert_eqf(distance_squared(&x[0], &y[0], 3), 0., "Zero distance");
 }
 
 void test_distance_squared(void) {
   DS_FLOAT x[3] = {1., 2., -3.};
   DS_FLOAT y[3] = {-3., 1., 2.};
-  assert_eqf(distance_squared(&x[0], &y[0], 3), 42., "Zero distance");
+  SEE_assert_eqf(distance_squared(&x[0], &y[0], 3), 42., "Zero distance");
 }
 
 void check_random_network(const DS_Network *const network,
                           const size_t num_layers, const size_t *const sizes,
                           char *const *const labels) {
-  assert_eqlu(network->num_layers, num_layers, "Network num layers");
+  SEE_assert_eqlu(network->num_layers, num_layers, "Network num layers");
   for (size_t l = 0; l < num_layers; ++l)
-    assert_eqlu(network->layer_sizes[l], sizes[l], "Layer sizes index %lu", l);
+    SEE_assert_eqlu(network->layer_sizes[l], sizes[l], "Layer sizes index %lu",
+                    l);
   if (labels) {
-    assert_neqp(network->output_labels, NULL, "Output labels are NULL.");
+    SEE_assert_neqp(network->output_labels, NULL, "Output labels are NULL.");
     const size_t L = sizes[num_layers - 1];
     for (size_t i = 0; i < L; ++i)
-      assert_eqstr(network->output_labels[i], labels[i],
-                   "Output label index %lu", i);
+      SEE_assert_eqstr(network->output_labels[i], labels[i],
+                       "Output label index %lu", i);
   } else {
-    assert_eqp(network->output_labels, NULL, "Output labels are not NULL.");
+    SEE_assert_eqp(network->output_labels, NULL, "Output labels are not NULL.");
   }
 
   // Check for memory segfaults
@@ -177,33 +177,34 @@ DS_Network *create_test_network(void) {
 }
 
 void check_network_empty_label_correctness(const DS_Network *const network) {
-  assert_eqp(network->output_labels, NULL, "Output labels are not NULL.");
+  SEE_assert_eqp(network->output_labels, NULL, "Output labels are not NULL.");
 }
 
 void check_network_label_correctness(const DS_Network *const network) {
-  assert_neqp(network->output_labels, NULL, "Output labels are NULL.");
+  SEE_assert_neqp(network->output_labels, NULL, "Output labels are NULL.");
   const size_t L = LAYER_SIZES[NUM_LAYERS - 1];
   for (size_t i = 0; i < L; ++i)
-    assert_eqstr(network->output_labels[i], OUTPUT_LABELS[i],
-                 "Output label index %lu", i);
+    SEE_assert_eqstr(network->output_labels[i], OUTPUT_LABELS[i],
+                     "Output label index %lu", i);
 }
 
 void check_network_correctness(const DS_Network *const network) {
-  assert_eqlu((size_t)NUM_LAYERS, network->num_layers,
-              "Wrong number of layers.");
+  SEE_assert_eqlu((size_t)NUM_LAYERS, network->num_layers,
+                  "Wrong number of layers.");
   for (size_t l = 0; l < network->num_layers; ++l)
-    assert_eqlu(network->layer_sizes[l], LAYER_SIZES[l],
-                "Not the same layer sizes for layer %lu.", l);
+    SEE_assert_eqlu(network->layer_sizes[l], LAYER_SIZES[l],
+                    "Not the same layer sizes for layer %lu.", l);
 
   for (size_t l = 0; l < network->num_layers - 1; ++l) {
     size_t n = network->layer_sizes[l + 1];
     size_t m = network->layer_sizes[l];
     for (size_t i = 0; i < n; ++i) {
       for (size_t j = 0; j < m; ++j)
-        assert_eqf(network->weights[l][IDX(i, j, m)], WEIGHTS[l][IDX(i, j, m)],
-                   "Weight for layer %lu, index i=%lu, j=%lu", l + 1, i, j);
-      assert_eqf(network->biases[l][i], BIASES[l][i],
-                 "Bias for layer %lu, index i=%lu", l + 1, i);
+        SEE_assert_eqf(network->weights[l][IDX(i, j, m)],
+                       WEIGHTS[l][IDX(i, j, m)],
+                       "Weight for layer %lu, index i=%lu, j=%lu", l + 1, i, j);
+      SEE_assert_eqf(network->biases[l][i], BIASES[l][i],
+                     "Bias for layer %lu, index i=%lu", l + 1, i);
     }
   }
 }
@@ -258,10 +259,10 @@ void test_network_feedforward(void) {
   for (size_t l = 0; l < NUM_LAYERS; ++l) {
     size_t n = network->layer_sizes[l];
     for (size_t i = 0; i < n; ++i) {
-      assert_eqf(network->result->inputs[l][i], res_inputs[l][i],
-                 "Input for layer %lu for index %lu", l, i);
-      assert_eqf(network->result->activations[l][i], res_activations[l][i],
-                 "Activation for layer %lu for index %lu", l, i);
+      SEE_assert_eqf(network->result->inputs[l][i], res_inputs[l][i],
+                     "Input for layer %lu for index %lu", l, i);
+      SEE_assert_eqf(network->result->activations[l][i], res_activations[l][i],
+                     "Activation for layer %lu for index %lu", l, i);
     }
   }
   DS_network_free(network);
@@ -271,18 +272,19 @@ void test_network_backprop_last_error(void) {
   DS_FLOAT a = 0.3;
   DS_FLOAT z = 0.5;
   DS_FLOAT y = 0.3;
-  assert_eqf(last_output_error_s(a, z, y), 0., "Last output error: No error.");
+  SEE_assert_eqf(last_output_error_s(a, z, y), 0.,
+                 "Last output error: No error.");
 
   a = 0.8;
   z = 0.3;
   y = 0.1;
-  assert_eqf(last_output_error_s(a, z, y), 0.17112081818352212,
-             "Last output error: Positive error.");
+  SEE_assert_eqf(last_output_error_s(a, z, y), 0.17112081818352212,
+                 "Last output error: Positive error.");
   a = 0.7;
   z = 0.8;
   y = 0.9;
-  assert_eqf(last_output_error_s(a, z, y), -0.042781939304058894,
-             "Last output error: Negative error.");
+  SEE_assert_eqf(last_output_error_s(a, z, y), -0.042781939304058894,
+                 "Last output error: Negative error.");
 }
 
 void check_backprop_segfauls(const DS_Backprop *const backprop) {
@@ -356,12 +358,12 @@ void test_network_backprop_error_sums_single_input(void) {
     size_t m = backprop->network->layer_sizes[l];
     for (size_t i = 0; i < n; ++i) {
       for (size_t j = 0; j < m; ++j)
-        assert_eqf(backprop->weight_error_sums[l][IDX(i, j, m)],
-                   error_weights[l][IDX(i, j, m)],
-                   "Weight errors l=%lu, i=%lu, j=%lu", l, i, j);
+        SEE_assert_eqf(backprop->weight_error_sums[l][IDX(i, j, m)],
+                       error_weights[l][IDX(i, j, m)],
+                       "Weight errors l=%lu, i=%lu, j=%lu", l, i, j);
 
-      assert_eqf(backprop->bias_error_sums[l][i], error_biases[l][i],
-                 "Bias error l=%lu, i=%lu", l, i);
+      SEE_assert_eqf(backprop->bias_error_sums[l][i], error_biases[l][i],
+                     "Bias error l=%lu, i=%lu", l, i);
     }
   }
 
@@ -397,12 +399,12 @@ void test_network_backprop_double_input(void) {
     size_t m = backprop->network->layer_sizes[l];
     for (size_t i = 0; i < n; ++i) {
       for (size_t j = 0; j < m; ++j)
-        assert_eqf(backprop->network->weights[l][IDX(i, j, m)],
-                   weights[l][IDX(i, j, m)], "Weight l=%lu, index i=%lu, j=%lu",
-                   l, i, j);
+        SEE_assert_eqf(backprop->network->weights[l][IDX(i, j, m)],
+                       weights[l][IDX(i, j, m)],
+                       "Weight l=%lu, index i=%lu, j=%lu", l, i, j);
 
-      assert_eqf(backprop->network->biases[l][i], biases[l][i],
-                 "Bias l=%lu, i=%lu", l, i);
+      SEE_assert_eqf(backprop->network->biases[l][i], biases[l][i],
+                     "Bias l=%lu, i=%lu", l, i);
     }
   }
 
@@ -440,25 +442,27 @@ void test_network_backprop_double_input_twice(void) {
     size_t m = backprop->network->layer_sizes[l];
     for (size_t i = 0; i < n; ++i) {
       for (size_t j = 0; j < m; ++j)
-        assert_eqf(backprop->network->weights[l][IDX(i, j, m)],
-                   weights[l][IDX(i, j, m)], "Weight l=%lu, index i=%lu, j=%lu",
-                   l, i, j);
+        SEE_assert_eqf(backprop->network->weights[l][IDX(i, j, m)],
+                       weights[l][IDX(i, j, m)],
+                       "Weight l=%lu, index i=%lu, j=%lu", l, i, j);
 
-      assert_eqf(backprop->network->biases[l][i], biases[l][i],
-                 "Bias l=%lu, i=%lu", l, i);
+      SEE_assert_eqf(backprop->network->biases[l][i], biases[l][i],
+                     "Bias l=%lu, i=%lu", l, i);
     }
   }
 
   DS_backprop_free(backprop);
 }
 
-RUN_TESTS(test_sigmoid_single, test_sigmoid_multi, test_sigmoid_prime_single,
-          test_dot_add_identity, test_dot_add_sum, test_dot_add_permutation,
-          test_idx, test_distance_squared_zero, test_distance_squared,
-          test_dot_add_non_symmetric, test_network_creation_random,
-          test_create_test_network, test_create_test_network_owned,
-          test_network_feedforward, test_backprop_create,
-          test_backprop_create_from_network, test_network_backprop_last_error,
-          test_network_backprop_error_sums_single_input,
-          test_network_backprop_double_input,
-          test_network_backprop_double_input_twice)
+SEE_RUN_TESTS(test_sigmoid_single, test_sigmoid_multi,
+              test_sigmoid_prime_single, test_dot_add_identity,
+              test_dot_add_sum, test_dot_add_permutation, test_idx,
+              test_distance_squared_zero, test_distance_squared,
+              test_dot_add_non_symmetric, test_network_creation_random,
+              test_create_test_network, test_create_test_network_owned,
+              test_network_feedforward, test_backprop_create,
+              test_backprop_create_from_network,
+              test_network_backprop_last_error,
+              test_network_backprop_error_sums_single_input,
+              test_network_backprop_double_input,
+              test_network_backprop_double_input_twice)
