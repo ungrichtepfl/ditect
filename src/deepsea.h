@@ -30,8 +30,8 @@ typedef struct DS_Network DS_Network;
 typedef struct DS_Backprop DS_Backprop;
 
 typedef struct {
-  FLOAT *input;
-  size_t length;
+  FLOAT *in;
+  size_t len;
 } DS_Input;
 
 void DS_input_free(DS_Input *const input);
@@ -59,16 +59,19 @@ FLOAT *DS_randn(const size_t n);
 void DS_randno(FLOAT *const values, const size_t n);
 
 DS_Network *DS_network_create_random(const size_t *const sizes,
-                                     const size_t num_layers);
+                                     const size_t num_layers,
+                                     char *const *const output_labels);
 
 DS_Network *DS_network_create(const FLOAT **const weights,
                               const FLOAT **const biases,
                               const size_t *const sizes,
-                              const size_t num_layers);
+                              const size_t num_layers,
+                              char *const *const output_labels);
 
 DS_Network *DS_network_create_owned(FLOAT **const weights, FLOAT **const biases,
                                     size_t *const sizes,
-                                    const size_t num_layers);
+                                    const size_t num_layers,
+                                    char *const *const output_labels);
 
 void DS_network_free(DS_Network *const network);
 
@@ -83,7 +86,8 @@ FLOAT DS_network_cost(DS_Network *const network, FLOAT *const *const xs,
 void DS_network_print_activation_layer(const DS_Network *const network);
 
 DS_Backprop *DS_brackprop_create(const size_t *const sizes,
-                                 const size_t num_layers);
+                                 const size_t num_layers,
+                                 char *const *const output_labels);
 
 DS_Backprop *DS_brackprop_create_from_network(DS_Network *const network);
 

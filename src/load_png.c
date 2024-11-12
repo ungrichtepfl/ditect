@@ -7,7 +7,6 @@
 
 DS_Input *DS_load_input_from_grey_png(const char *const image_path) {
   png_image image;
-
   memset(&image, 0, sizeof(image));
   image.version = PNG_IMAGE_VERSION;
 
@@ -36,8 +35,8 @@ DS_Input *DS_load_input_from_grey_png(const char *const image_path) {
 
   DS_Input *const input = MALLOC(sizeof(*input));
   DS_ASSERT(input, "Could not allocate input struct, out of memory.");
-  input->input = in;
-  input->length = image_size;
+  input->in = in;
+  input->len = image_size;
 
   return input;
 }

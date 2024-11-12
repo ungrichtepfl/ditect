@@ -8,7 +8,6 @@
 #include <time.h>
 
 static bool random_init = false;
-#define RAND rand
 #define INIT_RAND()                                                            \
   do {                                                                         \
     if (!random_init) {                                                        \
@@ -19,6 +18,7 @@ static bool random_init = false;
 
 #define IDX(i, j, m) ((i) * (m) + (j))
 
+#define MAX_OUTPUT_LABEL_STRLEN 0xFF
 
 typedef struct {
   FLOAT **activations;
@@ -31,6 +31,7 @@ struct DS_Network {
   FLOAT **biases;
   FLOAT **weights;
   DS_NetworkResult *result;
+  char **output_labels;
 };
 typedef struct DS_Network DS_Network;
 
@@ -56,7 +57,8 @@ FLOAT *DS_randn(const size_t n) {
 
 void DS_randno(FLOAT *const values, const size_t n) {
   FLOAT *r = DS_randn(n);
-  DS_ASSERT(memcpy(values, r, n * sizeof(values[0])), "Could copy random values");
+  DS_ASSERT(memcpy(values, r, n * sizeof(values[0])),
+            "Could copy random values");
   free(r);
 }
 
@@ -80,9 +82,10 @@ static DS_NetworkResult *create_empty_result(const size_t num_layers,
 
 DS_Network *DS_network_create_owned(FLOAT **const weights, FLOAT **const biases,
                                     size_t *const sizes,
-                                    const size_t num_layers) {
+                                    const size_t num_layers,
+                                    char *const *const output_labels) {
   DS_ASSERT(num_layers > 1,
-         "Cannot create network. At least 2 layers are needed.");
+            "Cannot create network. At least 2 layers are needed.");
   DS_Network *network = MALLOC(sizeof(*network));
   DS_ASSERT(network, "Could not create network, out of memory.");
 
@@ -91,61 +94,79 @@ DS_Network *DS_network_create_owned(FLOAT **const weights, FLOAT **const biases,
   network->weights = weights;
   network->biases = biases;
   network->result = create_empty_result(num_layers, sizes);
+  network->output_labels = NULL;
+
+  if (output_labels) {
+    const size_t L = sizes[num_layers - 1];
+    network->output_labels = MALLOC(L * sizeof(network->output_labels[0]));
+    for (size_t i = 0; i < L; ++i) {
+      const size_t label_len = strlen(output_labels[i]);
+      DS_ASSERT(label_len <= MAX_OUTPUT_LABEL_STRLEN,
+                "Output label at index %lu is longer than %d characters.", i,
+                MAX_OUTPUT_LABEL_STRLEN);
+      network->output_labels[i] =
+          MALLOC((label_len + 1) * sizeof(output_labels[i][0]));
+      strcpy(network->output_labels[i], output_labels[i]);
+    }
+  }
 
   return network;
 }
 
 DS_Network *DS_network_create_random(const size_t *const sizes,
-                                     const size_t num_layers) {
+                                     const size_t num_layers,
+                                     char *const *const output_labels) {
   DS_ASSERT(num_layers > 1,
-         "Cannot create network. At least 2 layers are needed.");
+            "Cannot create network. At least 2 layers are needed.");
   size_t *layer_sizes = MALLOC(num_layers * sizeof(layer_sizes[0]));
   FLOAT **biases = MALLOC((num_layers - 1) * sizeof(biases[0]));
   FLOAT **weights = MALLOC((num_layers - 1) * sizeof(weights[0]));
   DS_ASSERT(layer_sizes && biases && weights,
-         "Could not create network, out of memory.");
+            "Could not create network, out of memory.");
   DS_ASSERT(memcpy(layer_sizes, sizes, num_layers * sizeof(sizes[0])),
-         "Could copy layer sizes.");
+            "Could copy layer sizes.");
 
   for (size_t l = 0; l < num_layers - 1; ++l) {
     biases[l] = DS_randn(layer_sizes[l + 1]);
     weights[l] = DS_randn(layer_sizes[l] * layer_sizes[l + 1]);
   }
-  return DS_network_create_owned(weights, biases, layer_sizes, num_layers);
+  return DS_network_create_owned(weights, biases, layer_sizes, num_layers,
+                                 output_labels);
 }
 
 DS_Network *DS_network_create(const FLOAT **const weights,
                               const FLOAT **const biases,
                               const size_t *const sizes,
-                              const size_t num_layers) {
+                              const size_t num_layers,
+                              char *const *const output_labels) {
   DS_ASSERT(num_layers > 1,
-         "Cannot create network. At least 2 layers are needed.");
+            "Cannot create network. At least 2 layers are needed.");
   size_t *layer_sizes = MALLOC(num_layers * sizeof(layer_sizes[0]));
   FLOAT **network_biases = MALLOC((num_layers - 1) * sizeof(network_biases[0]));
   FLOAT **network_weights =
       MALLOC((num_layers - 1) * sizeof(network_weights[0]));
   DS_ASSERT(layer_sizes && network_biases && network_weights,
-         "Could not create network, out of memory.");
+            "Could not create network, out of memory.");
   DS_ASSERT(memcpy(layer_sizes, sizes, num_layers * sizeof(sizes[0])),
-         "Could copy layer sizes.");
+            "Could copy layer sizes.");
 
   for (size_t l = 0; l < num_layers - 1; ++l) {
     network_biases[l] =
         MALLOC(layer_sizes[l + 1] * sizeof(network_biases[l][0]));
     DS_ASSERT(network_biases[l], "Could not create network, out of memory.");
     DS_ASSERT(memcpy(network_biases[l], biases[l],
-                  layer_sizes[l + 1] * sizeof(network_biases[l][0])),
-           "Could not copy biases.");
+                     layer_sizes[l + 1] * sizeof(network_biases[l][0])),
+              "Could not copy biases.");
     network_weights[l] = MALLOC(layer_sizes[l] * layer_sizes[l + 1] *
                                 sizeof(network_weights[l][0]));
     DS_ASSERT(network_weights[l], "Could not create network, out of memory.");
     DS_ASSERT(memcpy(network_weights[l], weights[l],
-                  layer_sizes[l] * layer_sizes[l + 1] *
-                      sizeof(network_weights[l][0])),
-           "Could not copy weights.");
+                     layer_sizes[l] * layer_sizes[l + 1] *
+                         sizeof(network_weights[l][0])),
+              "Could not copy weights.");
   }
   return DS_network_create_owned(network_weights, network_biases, layer_sizes,
-                                 num_layers);
+                                 num_layers, output_labels);
 }
 static void network_result_free(DS_NetworkResult *result,
                                 const size_t num_layers) {
@@ -162,6 +183,14 @@ static void network_result_free(DS_NetworkResult *result,
 
 void DS_network_free(DS_Network *const network) {
   network_result_free(network->result, network->num_layers);
+
+  if (network->output_labels) {
+    const size_t L = network->layer_sizes[network->num_layers - 1];
+    for (size_t i = 0; i < L; ++i)
+      free(network->output_labels[i]);
+    free(network->output_labels);
+  }
+
   for (size_t i = 0; i < network->num_layers - 1; ++i) {
     free(network->biases[i]);
     free(network->weights[i]);
@@ -245,12 +274,12 @@ static inline void dot_add(const FLOAT *const W, const FLOAT *const x,
 void DS_network_feedforward(DS_Network *const network,
                             const FLOAT *const input) {
   DS_ASSERT(memcpy(network->result->inputs[0], input,
-                network->layer_sizes[0] * sizeof(input[0])),
-         "Could not copy inputs.");
+                   network->layer_sizes[0] * sizeof(input[0])),
+            "Could not copy inputs.");
 
   DS_ASSERT(memcpy(network->result->activations[0], input,
-                network->layer_sizes[0] * sizeof(input[0])),
-         "Could not copy activations.");
+                   network->layer_sizes[0] * sizeof(input[0])),
+            "Could not copy activations.");
   for (size_t l = 0; l < network->num_layers - 1; ++l) {
     const size_t n = network->layer_sizes[l + 1];
     const size_t m = network->layer_sizes[l];
@@ -259,17 +288,17 @@ void DS_network_feedforward(DS_Network *const network,
     dot_add(W, network->result->activations[l], b,
             network->result->activations[l + 1], n, m);
     DS_ASSERT(memcpy(network->result->inputs[l + 1],
-                  network->result->activations[l + 1],
-                  network->layer_sizes[l + 1] *
-                      sizeof(network->result->inputs[l + 1][0])),
-           "Could not copy inputs.");
+                     network->result->activations[l + 1],
+                     network->layer_sizes[l + 1] *
+                         sizeof(network->result->inputs[l + 1][0])),
+              "Could not copy inputs.");
     sigmoid(network->result->activations[l + 1],
             network->result->activations[l + 1], n); // Inplace
   }
 }
 
 void DS_input_free(DS_Input *const input) {
-  free(input->input);
+  free(input->in);
   free(input);
 }
 
@@ -313,11 +342,11 @@ DS_Backprop *DS_brackprop_create_from_network(DS_Network *const network) {
   backprop->weight_error_sums = MALLOC((network->num_layers - 1) *
                                        sizeof(backprop->weight_error_sums[0]));
   DS_ASSERT(backprop->weight_error_sums,
-         "Could not create backprop. Out of memory.");
+            "Could not create backprop. Out of memory.");
   backprop->bias_error_sums =
       MALLOC((network->num_layers - 1) * sizeof(backprop->bias_error_sums[0]));
   DS_ASSERT(backprop->bias_error_sums,
-         "Could not create backprop. Out of memory.");
+            "Could not create backprop. Out of memory.");
 
   for (size_t l = 0; l < network->num_layers; ++l) {
     backprop->errors[l] =
@@ -328,20 +357,22 @@ DS_Backprop *DS_brackprop_create_from_network(DS_Network *const network) {
     backprop->bias_error_sums[l] = MALLOC(
         network->layer_sizes[l + 1] * sizeof(backprop->bias_error_sums[l][0]));
     DS_ASSERT(backprop->bias_error_sums[l],
-           "Could not create backprop. Out of memory.");
+              "Could not create backprop. Out of memory.");
     backprop->weight_error_sums[l] =
         MALLOC(network->layer_sizes[l] * network->layer_sizes[l + 1] *
                sizeof(backprop->weight_error_sums[l][0]));
     DS_ASSERT(backprop->weight_error_sums[l],
-           "Could not create backprop. Out of memory.");
+              "Could not create backprop. Out of memory.");
   }
   backprop->network = network;
   return backprop;
 }
 
 DS_Backprop *DS_brackprop_create(const size_t *const sizes,
-                                 const size_t num_layers) {
-  DS_Network *network = DS_network_create_random(sizes, num_layers);
+                                 const size_t num_layers,
+                                 char *const *const output_labels) {
+  DS_Network *network =
+      DS_network_create_random(sizes, num_layers, output_labels);
   return DS_brackprop_create_from_network(network);
 }
 
