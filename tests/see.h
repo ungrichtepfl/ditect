@@ -49,7 +49,23 @@ static char *_current_test = NULL;
              _current_test, __LINE__);                                         \
       printf(__VA_ARGS__);                                                     \
       printf("\n");                                                            \
-      printf("     \"%s == %s\" not equal (%" type " != %" type ")!\n", #exp1, \
+      printf("     \"%s == %s\" but not equal (%" type " != %" type ")!\n",    \
+             #exp1, #exp2, (exp1), (exp2));                                    \
+      _RESET();                                                                \
+    }                                                                          \
+  } while (0)
+
+#define assert_neq(exp1, exp2, cond, type, ...)                                \
+  do {                                                                         \
+    if ((cond)) {                                                              \
+      _test_failed = true;                                                     \
+      _RED();                                                                  \
+      printf("  ASSERTION IN TEST \"%s\" FAILED ("__FILE__                     \
+             ": %d): ",                                                        \
+             _current_test, __LINE__);                                         \
+      printf(__VA_ARGS__);                                                     \
+      printf("\n");                                                            \
+      printf("     \"%s != %s\" but equal (%" type " == %" type ")!\n", #exp1, \
              #exp2, (exp1), (exp2));                                           \
       _RESET();                                                                \
     }                                                                          \
@@ -63,6 +79,15 @@ static char *_current_test = NULL;
 
 #define assert_eqlu(exp1, exp2, ...)                                           \
   assert_eq(exp1, exp2, (exp1) == (exp2), "lu", __VA_ARGS__)
+
+#define assert_eqp(exp1, exp2, ...)                                            \
+  assert_eq((void *)(exp1), (void *)(exp2), (exp1) == (exp2), "p", __VA_ARGS__)
+
+#define assert_neqp(exp1, exp2, ...)                                           \
+  assert_neq((void *)(exp1), (void *)(exp2), (exp1) == (exp2), "p", __VA_ARGS__)
+
+#define assert_eqstr(str1, str2, ...)                                          \
+  assert_eq(str1, str2, strcmp((str1), (str2)) == 0, "s", __VA_ARGS__)
 
 #define SEE_EPSILON 1.e-8
 #define assert_eqf(exp1, exp2, ...)                                            \
