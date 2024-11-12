@@ -102,13 +102,21 @@ void test_distance_squared(void) {
   assert_eqf(distance_squared(&x[0], &y[0], 3), 42., "Zero distance");
 }
 
-void test_network_creation_random(void) {
-  size_t num_layers = 3;
-  size_t sizes[3] = {2, 5, 7};
-  DS_Network *network = DS_network_create_random(&sizes[0], num_layers);
+void check_random_network(const DS_Network *const network,
+                          const size_t num_layers, const size_t *const sizes,
+                          char *const *const labels) {
   assert_eqlu(network->num_layers, num_layers, "Network num layers");
-  for (size_t i = 0; i < num_layers; ++i)
-    assert_eqlu(network->layer_sizes[i], sizes[i], "Layer sizes index %lu", i);
+  for (size_t l = 0; l < num_layers; ++l)
+    assert_eqlu(network->layer_sizes[l], sizes[l], "Layer sizes index %lu", l);
+  if (labels) {
+    assert_neqp(network->output_labels, NULL, "Output labels are NULL.");
+    const size_t L = sizes[num_layers - 1];
+    for (size_t i = 0; i < L; ++i)
+      assert_eqstr(network->output_labels[i], labels[i],
+                   "Output label index %lu", i);
+  } else {
+    assert_eqp(network->output_labels, NULL, "Output labels are not NULL.");
+  }
 
   // Check for memory segfaults
   for (size_t l = 0; l < num_layers - 1; ++l) {
@@ -132,6 +140,14 @@ void test_network_creation_random(void) {
       (void)in;
     }
   }
+}
+
+void test_network_creation_random(void) {
+  size_t num_layers = 3;
+  size_t sizes[3] = {2, 5, 7};
+  char *labels[7] = {"1", "2", "3", "4", "5", "6", "7"};
+  DS_Network *network = DS_network_create_random(&sizes[0], num_layers, labels);
+  check_random_network(network, num_layers, sizes, labels);
   DS_network_free(network);
 }
 
@@ -147,9 +163,23 @@ const FLOAT BIAS_2[LAYER_3] = {.4, .5};
 const size_t LAYER_SIZES[NUM_LAYERS] = {LAYER_1, LAYER_2, LAYER_3};
 const FLOAT *WEIGHTS[NUM_LAYERS - 1] = {&WEIGHT_1[0], &WEIGHT_2[0]};
 const FLOAT *BIASES[NUM_LAYERS - 1] = {&BIAS_1[0], &BIAS_2[0]};
+char *OUTPUT_LABELS[LAYER_3] = {"First Label", "Second Label"};
 
 DS_Network *create_test_network(void) {
-  return DS_network_create(&WEIGHTS[0], &BIASES[0], LAYER_SIZES, NUM_LAYERS);
+  return DS_network_create(&WEIGHTS[0], &BIASES[0], LAYER_SIZES, NUM_LAYERS,
+                           OUTPUT_LABELS);
+}
+
+void check_network_empty_label_correctness(const DS_Network *const network) {
+  assert_eqp(network->output_labels, NULL, "Output labels are not NULL.");
+}
+
+void check_network_label_correctness(const DS_Network *const network) {
+  assert_neqp(network->output_labels, NULL, "Output labels are NULL.");
+  const size_t L = LAYER_SIZES[NUM_LAYERS - 1];
+  for (size_t i = 0; i < L; ++i)
+    assert_eqstr(network->output_labels[i], OUTPUT_LABELS[i],
+                 "Output label index %lu", i);
 }
 
 void check_network_correctness(const DS_Network *const network) {
@@ -176,6 +206,7 @@ void check_network_correctness(const DS_Network *const network) {
 void test_create_test_network(void) {
   DS_Network *network = create_test_network();
   check_network_correctness(network);
+  check_network_label_correctness(network);
   DS_network_free(network);
 }
 
@@ -194,8 +225,9 @@ void test_create_test_network_owned(void) {
            LAYER_SIZES[l] * LAYER_SIZES[l + 1] * sizeof(weights[l][0]));
   }
   DS_Network *network =
-      DS_network_create_owned(weights, biases, sizes, NUM_LAYERS);
+      DS_network_create_owned(weights, biases, sizes, NUM_LAYERS, NULL);
   check_network_correctness(network);
+  check_network_empty_label_correctness(network);
   DS_network_free(network);
 }
 
@@ -244,6 +276,49 @@ void test_network_backprop_last_error(void) {
   y = 0.9;
   assert_eqf(last_output_error_s(a, z, y), -0.042781939304058894,
              "Last output error: Negative error.");
+}
+
+void check_backprop_segfauls(const DS_Backprop *const backprop) {
+
+  // Check for memory segfaults
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    size_t m = backprop->network->layer_sizes[l];
+    size_t n = backprop->network->layer_sizes[l + 1];
+    for (size_t i = 0; i < n; ++i) {
+      volatile FLOAT b = backprop->bias_error_sums[l][i];
+      (void)b;
+      for (size_t j = 0; j < m; ++j) {
+        volatile FLOAT w = backprop->weight_error_sums[l][IDX(i, j, m)];
+        (void)w;
+      }
+    }
+  }
+  for (size_t l = 0; l < backprop->network->num_layers; ++l) {
+    size_t n = backprop->network->layer_sizes[l];
+    for (size_t i = 0; i < n; ++i) {
+      volatile FLOAT e = backprop->errors[l][i];
+      (void)e;
+    }
+  }
+}
+
+void test_backprop_create(void) {
+  size_t num_layers = 4;
+  size_t sizes[4] = {2, 5, 3};
+  char **labels = NULL;
+  DS_Backprop *backprop = DS_brackprop_create(sizes, num_layers, labels);
+  check_backprop_segfauls(backprop);
+  check_random_network(DS_backprop_network(backprop), num_layers, sizes,
+                       labels);
+  DS_backprop_free(backprop);
+}
+
+void test_backprop_create_from_network(void) {
+  DS_Backprop *backprop =
+      DS_brackprop_create_from_network(create_test_network());
+  check_backprop_segfauls(backprop);
+  check_network_correctness(DS_backprop_network(backprop));
+  DS_backprop_free(backprop);
 }
 
 void test_network_backprop_error_sums_single_input(void) {
@@ -375,7 +450,8 @@ RUN_TESTS(test_sigmoid_single, test_sigmoid_multi, test_sigmoid_prime_single,
           test_idx, test_distance_squared_zero, test_distance_squared,
           test_dot_add_non_symmetric, test_network_creation_random,
           test_create_test_network, test_create_test_network_owned,
-          test_network_feedforward, test_network_backprop_last_error,
+          test_network_feedforward, test_backprop_create,
+          test_backprop_create_from_network, test_network_backprop_last_error,
           test_network_backprop_error_sums_single_input,
           test_network_backprop_double_input,
           test_network_backprop_double_input_twice)
