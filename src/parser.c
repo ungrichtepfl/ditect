@@ -12,11 +12,12 @@ void command_line_parse(CommandLineArgs *command_line, int argc, char *argv[]) {
   while (1) {
     static struct option long_options[] = {{"train", required_argument, 0, 't'},
                                            {"test", required_argument, 0, 'T'},
+                                           {"help", no_argument, 0, 'h'},
                                            {0, 0, 0, 0}};
     /* getopt_long stores the option index here. */
     int option_index = 0;
 
-    int c = getopt_long(argc, argv, "t:T:", long_options, &option_index);
+    int c = getopt_long(argc, argv, "t:T:h", long_options, &option_index);
 
     /* Detect the end of the options. */
     if (c == -1)
@@ -40,6 +41,21 @@ void command_line_parse(CommandLineArgs *command_line, int argc, char *argv[]) {
       action = CLA_TESTING;
       data_path = optarg;
       break;
+
+    case 'h':
+      printf("Usage: %s [OPTION]...\n\n", argv[0]);
+      printf(
+          "This program predicts handwritten digits using a neural network.\n"
+          "With no options, the program will start a GUI, where you can draw a "
+          "digit and the network tries to predict it.\n"
+          "It is also possible to train and test the network using the "
+          "different OPTIONS.\n\n");
+      printf("  -t, --train=FILE    Train the network with the data in "
+             "FILE\n");
+      printf("  -T, --test=FILE     Test the network with the data in "
+             "FILE\n");
+      printf("  -h, --help          Display this help and exit\n");
+      exit(0);
 
     case '?':
       /* getopt_long already printed an error message. */
