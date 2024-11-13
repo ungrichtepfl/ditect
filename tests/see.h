@@ -13,6 +13,9 @@
 #ifndef SEE_CALLOC
 #define SEE_CALLOC calloc
 #endif
+#ifndef SEE_REALLOC
+#define SEE_REALLOC realloc
+#endif
 #ifndef SEE_FREE
 #define SEE_FREE free
 #endif
@@ -48,14 +51,15 @@ static inline void _SEE_add_allocation(void *ptr, size_t size) {
 }
 
 // Helper function to remove an allocation record
-static inline void _SEE_remove_allocation(void *ptr) {
+static inline size_t _SEE_remove_allocation(void *ptr) {
   _SEE_Allocation **current = &_SEE_allocations;
   while (*current) {
     if ((*current)->ptr == ptr) {
       _SEE_Allocation *to_free = *current;
       *current = (*current)->next;
+      const size_t bytes = to_free->size;
       SEE_FREE(to_free);
-      return;
+      return bytes;
     }
     current = &(*current)->next;
   }
@@ -64,6 +68,7 @@ static inline void _SEE_remove_allocation(void *ptr) {
   _SEE_RED();
   printf("ERROR: Attempted to free untracked memory: %p\n", ptr);
   _SEE_RESET();
+  return 0;
 }
 
 static inline void *_SEE_debug_malloc(size_t size) {
@@ -80,6 +85,30 @@ static inline void *_SEE_debug_calloc(size_t num, size_t size) {
     _SEE_add_allocation(ptr, num * size);
   }
   return ptr;
+}
+
+void *_SEE_debug_realloc(void *ptr, size_t new_size) {
+  if (!ptr) {
+    // If ptr is NULL, realloc behaves like malloc
+    return _SEE_debug_malloc(new_size);
+  }
+
+  // Remove the old allocation record
+  const size_t old_size = _SEE_remove_allocation(ptr);
+
+  // Reallocate memory
+  void *new_ptr = SEE_REALLOC(ptr, new_size);
+  if (new_ptr) {
+    _SEE_add_allocation(new_ptr, new_size);
+  } else {
+    // If realloc fails, the original pointer remains valid and is still
+    // allocated
+    _SEE_add_allocation(
+        ptr,
+        old_size); // Re-add the original pointer to avoid losing track
+  }
+
+  return new_ptr;
 }
 
 static inline void _SEE_debug_free(void *ptr) {
@@ -288,7 +317,7 @@ static inline int _SEE_run_tests(void (*tests[])(void), const unsigned long n,
   return num_failed_tests;
 }
 
-#define SEE_RUN_TESTS(...)                                                         \
+#define SEE_RUN_TESTS(...)                                                     \
   int main(void) {                                                             \
     void (*tests[])(void) = {__VA_ARGS__};                                     \
     const unsigned long n = sizeof(tests) / sizeof(tests[0]);                  \
