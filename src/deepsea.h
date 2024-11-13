@@ -38,6 +38,10 @@ typedef struct {
   size_t count;
 } DS_Labelled_Inputs;
 
+/// Initialize the random number generator with a seed.
+/// If a negative seed is given, the current time is used as the seed.
+void DS_init_rand(long seed);
+
 DS_FLOAT *DS_randn(const size_t n);
 
 #define DS_ERROR(...)                                                          \

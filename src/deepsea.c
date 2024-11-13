@@ -7,14 +7,15 @@
 #include <string.h>
 #include <time.h>
 
-static bool random_init = false;
-#define INIT_RAND()                                                            \
-  do {                                                                         \
-    if (!random_init) {                                                        \
-      srand((unsigned int)time(NULL));                                         \
-      random_init = true;                                                      \
-    }                                                                          \
-  } while (0)
+void DS_init_rand(long seed) {
+  static bool random_init = false;
+
+  if (!random_init) {
+    const unsigned int s = (unsigned int)(seed >= 0 ? seed : time(NULL));
+    srand(s);
+    random_init = true;
+  }
+}
 
 #define IDX(i, j, m) ((i) * (m) + (j))
 
@@ -37,7 +38,7 @@ typedef struct DS_Network DS_Network;
 
 /// Normal random numbers generator - Marsaglia algorithm.
 DS_FLOAT *DS_randn(const size_t n) {
-  INIT_RAND();
+  DS_init_rand(-1);
   size_t m = n + n % 2;
   DS_FLOAT *values = (DS_FLOAT *)DS_CALLOC(m, sizeof(values[0]));
   DS_ASSERT(values, "Could not create random array, out of memory.");

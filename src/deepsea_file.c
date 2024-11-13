@@ -43,7 +43,8 @@ static void fill_file_list(const char *const dir_path,
       // Use lstat to get information about the file
       struct stat path_stat;
       if (stat(full_path, &path_stat) == -1) {
-        DS_ERROR("Could not get file info: %s. Skipping...", strerror(errno));
+        DS_ERROR("Could not get file info for \"%s\": %s. Skipping...",
+                 full_path, strerror(errno));
         continue;
       }
 
@@ -74,10 +75,9 @@ static void fill_file_list(const char *const dir_path,
   closedir(dir);
 }
 
-DS_FILE_FileList *DS_FILE_get_files(const char *const dir_path) {
-  DS_FILE_FileList *const file_list = DS_CALLOC(1, sizeof(*file_list));
-  DS_ASSERT(file_list, "Could not create file list, out of memory.");
-  fill_file_list(dir_path, file_list);
+DS_FILE_FileList DS_FILE_get_files(const char *const dir_path) {
+  DS_FILE_FileList file_list = {0};
+  fill_file_list(dir_path, &file_list);
   return file_list;
 }
 
@@ -86,7 +86,6 @@ void DS_FILE_file_list_free(DS_FILE_FileList *const file_list) {
     free(file_list->paths[i]);
   }
   free(file_list->paths);
-  free(file_list);
 }
 
 void DS_FILE_file_list_print(const DS_FILE_FileList *const file_list) {
@@ -96,28 +95,28 @@ void DS_FILE_file_list_print(const DS_FILE_FileList *const file_list) {
     DS_PRINTF("%s\n", file_list->paths[i]);
 }
 
-void DS_FILE_file_list_print_labelled(const DS_FILE_FileList *const file_list) {
-  const size_t cut = 10;
+void DS_FILE_file_list_print_labelled(const DS_FILE_FileList *const file_list,
+                                      size_t cut) {
+  if (cut == 0)
+    cut = file_list->count; // Take all the files
+
   const size_t stop = file_list->count > cut ? cut : file_list->count;
   for (size_t i = 0; i < stop; ++i)
-    DS_PRINTF("%7lu: %s\n", DS_FILE_get_label(file_list->paths[i]),
+    DS_PRINTF("%7lu: %s\n",
+              DS_FILE_get_label_from_directory_name(file_list->paths[i]),
               file_list->paths[i]);
 }
 
-size_t DS_FILE_get_label(const char *const file_path) {
+size_t DS_FILE_get_label_from_directory_name(const char *const file_path) {
   // Get the basename (the last part of the path)
   char *dir_path = DS_MALLOC(strlen(file_path) + 1);
   strcpy(dir_path, file_path); // Duplicate file path to safely manipulate it
 
   char *last_slash = strrchr(dir_path, '/');
-  if (last_slash) {
-    *last_slash = '\0'; // Null-terminate to get the directory part
-  } else {
-    DS_ERROR("Could not get label for \"%s\" wrong format. Returning 0.",
-             file_path);
-    DS_FREE(dir_path);
-    return 0;
-  }
+
+  DS_ASSERT(last_slash, "Could not get label for \"%s\" wrong format.",
+            file_path);
+  *last_slash = '\0'; // Null-terminate to get the directory part
 
   // Get the name of the parent directory
   char *parent_dir = strrchr(dir_path, '/');
@@ -133,7 +132,8 @@ size_t DS_FILE_get_label(const char *const file_path) {
   return label;
 }
 
-void number_to_binary_array(size_t num, size_t *arr, const size_t arr_size) {
+void label_from_number_to_binary_array(size_t num, size_t *arr,
+                                       const size_t arr_size) {
   // Start with the least significant bit and move to the most significant bit
   for (size_t i = 0; i < arr_size; i++) {
     // Set the current bit in the array (0 or 1)
@@ -141,4 +141,75 @@ void number_to_binary_array(size_t num, size_t *arr, const size_t arr_size) {
     // Right shift the number by 1 for the next bit
     num >>= 1;
   }
+}
+
+static void shuffle(size_t *shuffled, size_t length) {
+  for (size_t i = 0, j = 0, k = 0, aux = 0; i < length; ++i) {
+    do {
+      j = rand() % length;
+      k = rand() % length;
+    } while (j == k);
+
+    aux = shuffled[j];
+    shuffled[j] = shuffled[k];
+    shuffled[k] = aux;
+  }
+}
+
+static void shuffelled_indexes(size_t *indexes, size_t length) {
+
+  for (size_t i = 0; i < length; ++i) {
+    indexes[i] = i;
+  }
+
+  shuffle(indexes, length);
+}
+
+static size_t *_random_file_array_indexes = NULL;
+static size_t _current_random_bucket_count = 0;
+static DS_FILE_FileList _current_random_file_list = {0};
+DS_FILE_FileList *
+DS_FILE_get_random_bucket(const DS_FILE_FileList *const file_list,
+                          const size_t max_count) {
+  if (_current_random_bucket_count ==
+      0) { // This gets reset when we drained a full file list
+    DS_init_rand(-1);
+    _random_file_array_indexes =
+        DS_MALLOC(file_list->count * sizeof(_random_file_array_indexes[0]));
+    DS_ASSERT(_random_file_array_indexes,
+              "Could not create random file array. Out of memory.");
+    shuffelled_indexes(_random_file_array_indexes, file_list->count);
+  }
+
+  const size_t start = _current_random_bucket_count;
+  size_t stop = _current_random_bucket_count + max_count;
+  if (stop > file_list->count)
+    stop = file_list->count;
+
+  if (_current_random_file_list.paths) {
+    DS_FREE(_current_random_file_list.paths);
+    _current_random_file_list.paths = NULL;
+  }
+
+  if (stop <= start) {
+    _current_random_bucket_count = 0;
+    DS_FREE(_random_file_array_indexes);
+    _random_file_array_indexes = NULL;
+    return NULL;
+  }
+
+  const size_t count = stop - start; // we know this is at least 1
+
+  _current_random_file_list.paths =
+      DS_MALLOC(count * sizeof(_current_random_file_list.paths));
+  DS_ASSERT(_current_random_file_list.paths,
+            "Could not get new random bucket. Out of memory.");
+
+  for (size_t i = start, j = 0; i < stop; ++i, ++j) {
+    _current_random_file_list.paths[j] =
+        file_list->paths[_random_file_array_indexes[i]];
+  }
+  _current_random_file_list.count = count;
+  _current_random_bucket_count += count;
+  return &_current_random_file_list;
 }

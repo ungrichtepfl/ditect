@@ -19,16 +19,24 @@
 
 void train(const char *const data_path) {
 
-  DS_FILE_FileList *data_file_paths = DS_FILE_get_files(data_path);
-  DS_ASSERT(data_file_paths, "Could not create file lists.");
-  DS_ASSERT(data_file_paths->count > 0, "No files found.");
-  DS_FILE_file_list_print_labelled(data_file_paths);
-  DS_PNG_Input *png_input = DS_PNG_input_load_grey(data_file_paths->paths[0]);
-  DS_ASSERT(png_input, "Could not read png.");
+  DS_FILE_FileList data_file_paths = DS_FILE_get_files(data_path);
+  DS_ASSERT(data_file_paths.count > 0, "No files found.");
 
-  DS_FILE_file_list_free(data_file_paths);
-  DS_PNG_input_print(png_input);
-  DS_PNG_input_free(png_input);
+  DS_FILE_file_list_print_labelled(&data_file_paths, 10);
+  DS_FILE_FileList *random_slice = NULL;
+  bool first = true;
+  while ((random_slice = DS_FILE_get_random_bucket(&data_file_paths, 3)) !=
+         NULL) {
+    if (first) {
+      DS_PNG_Input *png_input = DS_PNG_input_load_grey(random_slice->paths[0]);
+      DS_ASSERT(png_input, "Could not read png.");
+      DS_PNG_input_print(png_input);
+      DS_PNG_input_free(png_input);
+      DS_FILE_file_list_print_labelled(random_slice, 0);
+      first = false;
+    }
+  }
+  DS_FILE_file_list_free(&data_file_paths);
 
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
   DS_FLOAT learing_rate = 0.01;
