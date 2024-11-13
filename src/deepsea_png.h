@@ -2,9 +2,19 @@
 #define LOAD_PNG_H
 
 #include "deepsea.h"
-#include <png.h>
-#include <stdbool.h>
 
-DS_Input *DS_load_input_from_grey_png(const char *const image_path);
+typedef struct DS_PNG_Input DS_PNG_Input;
+
+typedef enum {
+  DS_PNG_Gray,
+} DS_PNG_Type;
+
+DS_PNG_Input *DS_PNG_input_load_grey(const char *const image_path);
+
+void DS_PNG_input_print(const DS_PNG_Input *const png_input);
+
+void DS_PNG_input_free(DS_PNG_Input *const png_input);
+
+const DS_Input *DS_PNG_input_get_input(const DS_PNG_Input *const png_input);
 
 #endif // LOAD_PNG_H

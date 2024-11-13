@@ -18,18 +18,12 @@
 
 void train(const char *const data_path) {
 
-  DS_Input *input = DS_load_input_from_grey_png(data_path);
-  if (!input) {
-    exit(1);
+  DS_PNG_Input *png_input = DS_PNG_input_load_grey(data_path);
+  if (!png_input) {
+    DS_EXIT(1);
   }
-  printf("Length: %lu\n", input->len);
-  for (size_t i = 0; i < 28; ++i) {
-    for (size_t j = 0; j < 28; ++j) {
-      printf("%.2f ", input->in[i + 28 * j]);
-    }
-    printf("\n");
-  }
-  DS_input_free(input);
+  DS_PNG_input_print(png_input);
+  DS_PNG_input_free(png_input);
 
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
   DS_FLOAT learing_rate = 0.01;
@@ -60,7 +54,7 @@ void train(const char *const data_path) {
   DS_network_print_activation_layer(DS_backprop_network(backprop));
 
   DS_backprop_free(backprop);
-  free(x);
+  DS_FREE(x);
 }
 
 void run_gui(void) {
