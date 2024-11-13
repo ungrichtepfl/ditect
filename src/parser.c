@@ -3,10 +3,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void command_line_parse(CommandLineArgs *command_line, int argc, char *argv[]) {
   CommandLineAction action = CLA_GUI;
-  const char *data_path = NULL;
+  char *data_path = NULL;
   const char err[] = "%s: Either specify testing or training, not both!\n";
 
   while (1) {
@@ -67,5 +68,12 @@ void command_line_parse(CommandLineArgs *command_line, int argc, char *argv[]) {
   }
 
   command_line->action = action;
+
+  if (data_path) {
+    const size_t len = strlen(data_path);
+    if (data_path[len - 1] == '/') {
+      data_path[len - 1] = '\0';
+    }
+  }
   command_line->data_path = data_path;
 }
