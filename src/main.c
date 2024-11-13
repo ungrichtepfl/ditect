@@ -68,6 +68,10 @@ void train(const char *const data_path) {
 
   DS_network_print_activation_layer(DS_backprop_network(backprop));
 
+  if (!DS_network_save(DS_backprop_network(backprop), "network.txt")) {
+    DS_PRINTF("Failed to save network!\n");
+  }
+
   DS_backprop_free(backprop);
   for (size_t i = 0; i < NUM_TRAINING; ++i) {
     DS_FREE(ys[i]);

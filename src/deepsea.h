@@ -1,6 +1,8 @@
 #ifndef DEEPSEE_H
 #define DEEPSEE_H
 
+#include <stdbool.h>
+
 #ifndef DS_FLOAT
 #define DS_FLOAT double
 #endif
@@ -64,6 +66,9 @@ DS_FLOAT *DS_randn(const size_t n);
 
 void DS_randno(DS_FLOAT *const values, const size_t n);
 
+bool DS_network_save(const DS_Network *const network,
+                     const char *const file_path);
+
 DS_Network *DS_network_create_random(const size_t *const sizes,
                                      const size_t num_layers,
                                      char *const *const output_labels);
@@ -78,7 +83,7 @@ DS_Network *DS_network_create_owned(DS_FLOAT **const weights,
                                     DS_FLOAT **const biases,
                                     size_t *const sizes,
                                     const size_t num_layers,
-                                    char *const *const output_labels);
+                                    char **const output_labels);
 
 void DS_network_free(DS_Network *const network);
 

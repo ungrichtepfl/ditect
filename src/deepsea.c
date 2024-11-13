@@ -1,7 +1,7 @@
 #include "deepsea.h"
+#include <errno.h>
 #include <math.h>
 #include <stdarg.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +35,86 @@ struct DS_Network {
   char **output_labels;
 };
 typedef struct DS_Network DS_Network;
+
+#define SERIAL_SEP ";"
+
+char *read_line(FILE *file) {
+  int bufferSize = 128; // Initial buffer size
+  int length = 0;       // Current length of the string
+  char *buffer = DS_MALLOC(bufferSize);
+
+  if (!buffer) {
+    DS_ERROR("Could not read line. Out of memory.");
+    return NULL;
+  }
+
+  int character;
+  while ((character = fgetc(file)) != EOF && character != '\n') {
+    buffer[length++] = (char)character;
+
+    // If we exceed the buffer, reallocate more memory
+    if (length >= bufferSize) {
+      bufferSize *= 2; // Double the buffer size
+      char *newBuffer = DS_REALLOC(buffer, bufferSize);
+      if (!newBuffer) {
+        DS_ERROR("Could not read line. Out of memory.");
+        DS_FREE(buffer);
+        return NULL;
+      }
+      buffer = newBuffer;
+    }
+  }
+
+  if (length == 0 && character == EOF) {
+    DS_FREE(buffer);
+    return NULL; // End of file and no characters read
+  }
+
+  buffer[length] = '\0'; // Null-terminate the string
+  return buffer;
+}
+
+bool DS_network_save(const DS_Network *const network,
+                     const char *const file_path) {
+  FILE *f = NULL;
+  if ((f = fopen(file_path, "w")) == NULL) {
+    DS_ERROR("Could not open file \"%s\": %s", file_path, strerror(errno));
+    return false;
+  }
+
+  fprintf(f, "%lu\n", network->num_layers);
+  for (size_t l = 0; l < network->num_layers; ++l)
+    fprintf(f, "%lu" SERIAL_SEP, network->layer_sizes[l]);
+  fprintf(f, "\n");
+
+  for (size_t l = 0; l < network->num_layers - 1; ++l) {
+    const size_t n = network->layer_sizes[l + 1];
+    for (size_t i = 0; i < n; ++i)
+      fprintf(f, "%f" SERIAL_SEP, (double)network->biases[l][i]);
+    fprintf(f, "\n");
+  }
+
+  for (size_t l = 0; l < network->num_layers - 1; ++l) {
+    const size_t n = network->layer_sizes[l + 1];
+    const size_t m = network->layer_sizes[l];
+    for (size_t i = 0; i < n * m; ++i)
+      fprintf(f, "%f" SERIAL_SEP, (double)network->weights[l][i]);
+    fprintf(f, "\n");
+  }
+  if (network->output_labels) {
+    const size_t L = network->layer_sizes[network->num_layers - 1];
+    for (size_t i = 0; i < L; ++i)
+      fprintf(f, "%s" SERIAL_SEP, network->output_labels[i]);
+    fprintf(f, "\n");
+  }
+
+  if (fclose(f) != 0) {
+    DS_ERROR("Could not close file \"%s\": %s", file_path, strerror(errno));
+    return false;
+  }
+
+  return true;
+}
 
 /// Normal random numbers generator - Marsaglia algorithm.
 DS_FLOAT *DS_randn(const size_t n) {
@@ -81,11 +161,31 @@ static DS_NetworkResult *create_empty_result(const size_t num_layers,
   return result;
 }
 
+static char **create_owned_output_labels(char *const *const output_labels,
+                                         const size_t *const sizes,
+                                         const size_t num_layers) {
+  char **owned_output_labels = NULL;
+  if (output_labels) {
+    const size_t L = sizes[num_layers - 1];
+    owned_output_labels = DS_MALLOC(L * sizeof(owned_output_labels[0]));
+    for (size_t i = 0; i < L; ++i) {
+      const size_t label_len = strlen(output_labels[i]);
+      DS_ASSERT(label_len <= MAX_OUTPUT_LABEL_STRLEN,
+                "Output label at index %lu is longer than %d characters.", i,
+                MAX_OUTPUT_LABEL_STRLEN);
+      owned_output_labels[i] =
+          DS_MALLOC((label_len + 1) * sizeof(output_labels[i][0]));
+      strcpy(owned_output_labels[i], output_labels[i]);
+    }
+  }
+  return owned_output_labels;
+}
+
 DS_Network *DS_network_create_owned(DS_FLOAT **const weights,
                                     DS_FLOAT **const biases,
                                     size_t *const sizes,
                                     const size_t num_layers,
-                                    char *const *const output_labels) {
+                                    char **const output_labels) {
   DS_ASSERT(num_layers > 1,
             "Cannot create network. At least 2 layers are needed.");
   DS_Network *network = DS_MALLOC(sizeof(*network));
@@ -96,21 +196,7 @@ DS_Network *DS_network_create_owned(DS_FLOAT **const weights,
   network->weights = weights;
   network->biases = biases;
   network->result = create_empty_result(num_layers, sizes);
-  network->output_labels = NULL;
-
-  if (output_labels) {
-    const size_t L = sizes[num_layers - 1];
-    network->output_labels = DS_MALLOC(L * sizeof(network->output_labels[0]));
-    for (size_t i = 0; i < L; ++i) {
-      const size_t label_len = strlen(output_labels[i]);
-      DS_ASSERT(label_len <= MAX_OUTPUT_LABEL_STRLEN,
-                "Output label at index %lu is longer than %d characters.", i,
-                MAX_OUTPUT_LABEL_STRLEN);
-      network->output_labels[i] =
-          DS_MALLOC((label_len + 1) * sizeof(output_labels[i][0]));
-      strcpy(network->output_labels[i], output_labels[i]);
-    }
-  }
+  network->output_labels = output_labels;
 
   return network;
 }
@@ -132,8 +218,9 @@ DS_Network *DS_network_create_random(const size_t *const sizes,
     biases[l] = DS_randn(layer_sizes[l + 1]);
     weights[l] = DS_randn(layer_sizes[l] * layer_sizes[l + 1]);
   }
-  return DS_network_create_owned(weights, biases, layer_sizes, num_layers,
-                                 output_labels);
+  return DS_network_create_owned(
+      weights, biases, layer_sizes, num_layers,
+      create_owned_output_labels(output_labels, sizes, num_layers));
 }
 
 DS_Network *DS_network_create(const DS_FLOAT **const weights,
@@ -168,8 +255,9 @@ DS_Network *DS_network_create(const DS_FLOAT **const weights,
                          sizeof(network_weights[l][0])),
               "Could not copy weights.");
   }
-  return DS_network_create_owned(network_weights, network_biases, layer_sizes,
-                                 num_layers, output_labels);
+  return DS_network_create_owned(
+      network_weights, network_biases, layer_sizes, num_layers,
+      create_owned_output_labels(output_labels, sizes, num_layers));
 }
 static void network_result_free(DS_NetworkResult *result,
                                 const size_t num_layers) {
