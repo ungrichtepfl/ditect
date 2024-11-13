@@ -33,18 +33,10 @@ typedef struct DS_Network DS_Network;
 typedef struct DS_Backprop DS_Backprop;
 
 typedef struct {
-  DS_FLOAT *in;
-  size_t len;
-} DS_Input;
-
-typedef struct {
-  DS_Input input;
-  /// Activations of output layer in binary, e.g. for 4 neurons in last layer a
-  /// label of 11 corresponds to 1101 in the output layer.
-  size_t label;
-} DS_Labelled_Input;
-
-void DS_input_free(DS_Input *const input);
+  DS_FLOAT **inputs;
+  DS_FLOAT **labels;
+  size_t count;
+} DS_Labelled_Inputs;
 
 DS_FLOAT *DS_randn(const size_t n);
 
@@ -91,8 +83,8 @@ void DS_network_print(const DS_Network *const network);
 void DS_network_feedforward(DS_Network *const network,
                             const DS_FLOAT *const input);
 
-DS_FLOAT DS_network_cost(DS_Network *const network, DS_FLOAT *const *const xs,
-                         DS_FLOAT *const *const ys, const size_t num_training);
+DS_FLOAT DS_network_cost(DS_Network *const network,
+                         const DS_Labelled_Inputs *const labelled_input);
 
 void DS_network_print_activation_layer(const DS_Network *const network);
 
@@ -105,16 +97,13 @@ DS_Backprop *DS_brackprop_create_from_network(DS_Network *const network);
 void DS_backprop_free(DS_Backprop *const backprop);
 
 void DS_backprop_learn_once(DS_Backprop *const backprop,
-                            DS_FLOAT *const *const xs,
-                            DS_FLOAT *const *const ys,
-                            const size_t num_training,
+                            const DS_Labelled_Inputs *const labelled_input,
                             const DS_FLOAT learing_rate);
 
 DS_Network const *DS_backprop_network(const DS_Backprop *const backprop);
 
-DS_FLOAT DS_backprop_network_cost(DS_Backprop *const backprop,
-                                  DS_FLOAT *const *const xs,
-                                  DS_FLOAT *const *const ys,
-                                  const size_t num_training);
+DS_FLOAT
+DS_backprop_network_cost(DS_Backprop *const backprop,
+                         const DS_Labelled_Inputs *const labelled_input);
 
 #endif // DEEPSEE_H

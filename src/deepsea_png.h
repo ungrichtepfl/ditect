@@ -15,6 +15,6 @@ void DS_PNG_input_print(const DS_PNG_Input *const png_input);
 
 void DS_PNG_input_free(DS_PNG_Input *const png_input);
 
-const DS_Input *DS_PNG_input_get_input(const DS_PNG_Input *const png_input);
+const DS_FLOAT *DS_PNG_input_get_data(const DS_PNG_Input *const png_input);
 
 #endif // LOAD_PNG_H

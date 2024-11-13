@@ -132,3 +132,13 @@ size_t DS_FILE_get_label(const char *const file_path) {
   DS_FREE(dir_path);
   return label;
 }
+
+void number_to_binary_array(size_t num, size_t *arr, const size_t arr_size) {
+  // Start with the least significant bit and move to the most significant bit
+  for (size_t i = 0; i < arr_size; i++) {
+    // Set the current bit in the array (0 or 1)
+    arr[arr_size - 1 - i] = (num & 1);
+    // Right shift the number by 1 for the next bit
+    num >>= 1;
+  }
+}

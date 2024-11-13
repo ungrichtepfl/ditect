@@ -300,22 +300,18 @@ void DS_network_feedforward(DS_Network *const network,
   }
 }
 
-void DS_input_free(DS_Input *const input) {
-  DS_FREE(input->in);
-  DS_FREE(input);
-}
-
-DS_FLOAT DS_network_cost(DS_Network *const network, DS_FLOAT *const *const xs,
-                         DS_FLOAT *const *const ys, const size_t num_training) {
+DS_FLOAT DS_network_cost(DS_Network *const network,
+                         const DS_Labelled_Inputs *const labelled_input) {
   DS_FLOAT cost = 0;
   size_t len_output = network->layer_sizes[network->num_layers - 1];
-  for (size_t p = 0; p < num_training; ++p) {
-    DS_network_feedforward(network, xs[p]);
-    cost +=
-        distance_squared(network->result->activations[network->num_layers - 1],
-                         ys[p], len_output);
+  for (size_t p = 0; p < labelled_input->count; ++p) {
+    const DS_FLOAT *x = labelled_input->inputs[p];
+    const DS_FLOAT *y = labelled_input->labels[p];
+    DS_network_feedforward(network, x);
+    cost += distance_squared(
+        network->result->activations[network->num_layers - 1], y, len_output);
   }
-  return 1. / (2. * (DS_FLOAT)num_training) * cost;
+  return 1. / (2. * (DS_FLOAT)labelled_input->count) * cost;
 }
 
 void DS_network_print_activation_layer(const DS_Network *const network) {
@@ -427,10 +423,9 @@ static void calculate_output_error(DS_Backprop *const backprop,
   }
 }
 
-static void calculate_error_sums(DS_Backprop *const backprop,
-                                 DS_FLOAT *const *const xs,
-                                 DS_FLOAT *const *const ys,
-                                 size_t num_training) {
+static void
+calculate_error_sums(DS_Backprop *const backprop,
+                     const DS_Labelled_Inputs *const labelled_input) {
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     const size_t n = backprop->network->layer_sizes[l + 1];
@@ -441,9 +436,9 @@ static void calculate_error_sums(DS_Backprop *const backprop,
            m * n * sizeof(backprop->weight_error_sums[l][0]));
   }
 
-  for (size_t d = 0; d < num_training; ++d) {
-    const DS_FLOAT *const x = xs[d];
-    const DS_FLOAT *const y = ys[d];
+  for (size_t d = 0; d < labelled_input->count; ++d) {
+    const DS_FLOAT *const x = labelled_input->inputs[d];
+    const DS_FLOAT *const y = labelled_input->labels[d];
     DS_network_feedforward(backprop->network, x);
     calculate_output_error(backprop, y);
     for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
@@ -483,21 +478,19 @@ static void update_weights_and_biases(DS_Backprop *const backprop,
 }
 
 void DS_backprop_learn_once(DS_Backprop *const backprop,
-                            DS_FLOAT *const *const xs,
-                            DS_FLOAT *const *const ys,
-                            const size_t num_training,
+                            const DS_Labelled_Inputs *const labelled_input,
                             const DS_FLOAT learing_rate) {
-  calculate_error_sums(backprop, xs, ys, num_training);
 
-  const DS_FLOAT rate = learing_rate / (DS_FLOAT)num_training;
+  calculate_error_sums(backprop, labelled_input);
+
+  const DS_FLOAT rate = learing_rate / (DS_FLOAT)labelled_input->count;
   update_weights_and_biases(backprop, rate);
 }
 
-DS_FLOAT DS_backprop_network_cost(DS_Backprop *const backprop,
-                                  DS_FLOAT *const *const xs,
-                                  DS_FLOAT *const *const ys,
-                                  const size_t num_training) {
-  return DS_network_cost(backprop->network, xs, ys, num_training);
+DS_FLOAT
+DS_backprop_network_cost(DS_Backprop *const backprop,
+                         const DS_Labelled_Inputs *const labelled_input) {
+  return DS_network_cost(backprop->network, labelled_input);
 }
 
 DS_Network const *DS_backprop_network(const DS_Backprop *const backprop) {

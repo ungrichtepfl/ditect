@@ -8,7 +8,7 @@
 
 #define MAX_PNG_GRAY_VALUE 255.
 struct DS_PNG_Input {
-  DS_Input *input;
+  DS_FLOAT *data;
   size_t width;
   size_t height;
   DS_PNG_Type type;
@@ -39,18 +39,13 @@ DS_PNG_Input *DS_PNG_input_load_grey(const char *const png_image_path) {
     return NULL;
   }
 
-  DS_FLOAT *const in = DS_MALLOC(image_size * sizeof(in[0]));
+  DS_FLOAT *const data = DS_MALLOC(image_size * sizeof(data[0]));
   for (size_t i = 0; i < image_size; ++i)
-    in[i] = (DS_FLOAT)buffer[i] / MAX_PNG_GRAY_VALUE;
+    data[i] = (DS_FLOAT)buffer[i] / MAX_PNG_GRAY_VALUE;
   DS_FREE(buffer);
 
-  DS_Input *const input = DS_MALLOC(sizeof(*input));
-  DS_ASSERT(input, "Could not allocate input struct, out of memory.");
-  input->in = in;
-  input->len = image_size;
-
   DS_PNG_Input *png_input = DS_MALLOC(sizeof(*png_input));
-  png_input->input = input;
+  png_input->data = data;
   png_input->width = image.width;
   png_input->height = image.height;
   png_input->type = DS_PNG_Gray;
@@ -75,9 +70,8 @@ void DS_PNG_input_print(const DS_PNG_Input *const png_input) {
 
       DS_PRINTF("│ ");
       for (size_t i = 0; i < png_input->height; ++i) {
-        DS_PRINTF("%3.d ",
-                  (int)(png_input->input->in[i + png_input->width * j] *
-                        MAX_PNG_GRAY_VALUE));
+        DS_PRINTF("%3.d ", (int)(png_input->data[i + png_input->width * j] *
+                                 MAX_PNG_GRAY_VALUE));
       }
       DS_PRINTF("│\n");
     }
@@ -93,6 +87,10 @@ void DS_PNG_input_print(const DS_PNG_Input *const png_input) {
 }
 
 void DS_PNG_input_free(DS_PNG_Input *const png_input) {
-  DS_input_free(png_input->input);
+  DS_FREE(png_input->data);
   DS_FREE(png_input);
+}
+
+const DS_FLOAT *DS_PNG_input_get_data(const DS_PNG_Input *const png_input) {
+  return png_input->data;
 }

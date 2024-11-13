@@ -30,7 +30,6 @@ void train(const char *const data_path) {
   DS_PNG_input_print(png_input);
   DS_PNG_input_free(png_input);
 
-
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
   DS_FLOAT learing_rate = 0.01;
   DS_Backprop *backprop = DS_brackprop_create(layer_sizes, NUM_LAYERS, NULL);
@@ -39,28 +38,35 @@ void train(const char *const data_path) {
 
   DS_FLOAT *x = DS_randn(NUM_INPUTS);
 
-  DS_FLOAT **ys = alloca(NUM_TRAINING * sizeof(ys[0]));
+  DS_FLOAT **ys = DS_MALLOC(NUM_TRAINING * sizeof(ys[0]));
   for (size_t i = 0; i < NUM_TRAINING; ++i) {
-    ys[i] = alloca(NUM_OUTPUTS * sizeof(DS_FLOAT));
+    ys[i] = DS_MALLOC(NUM_OUTPUTS * sizeof(DS_FLOAT));
     memset(ys[i], 0, NUM_OUTPUTS * sizeof(DS_FLOAT));
   }
 
-  DS_FLOAT **xs = alloca(NUM_TRAINING * sizeof(xs[0]));
+  DS_FLOAT **xs = DS_MALLOC(NUM_TRAINING * sizeof(xs[0]));
   for (size_t i = 0; i < NUM_TRAINING; ++i) {
     xs[i] = x;
   }
+  DS_Labelled_Inputs labelled_inputs = {
+      .inputs = xs, .labels = ys, .count = NUM_TRAINING};
 
-  DS_FLOAT cost = DS_backprop_network_cost(backprop, xs, ys, NUM_TRAINING);
+  DS_FLOAT cost = DS_backprop_network_cost(backprop, &labelled_inputs);
   DS_PRINTF("Cost of network BEFORE learning: %.2f\n", cost);
   for (int i = 0; i < 1; ++i)
-    DS_backprop_learn_once(backprop, xs, ys, NUM_TRAINING, learing_rate);
-  cost = DS_backprop_network_cost(backprop, xs, ys, NUM_TRAINING);
+    DS_backprop_learn_once(backprop, &labelled_inputs, learing_rate);
+  cost = DS_backprop_network_cost(backprop, &labelled_inputs);
   DS_PRINTF("cost of network AFTER learing: %.2f\n", cost);
 
   DS_network_print_activation_layer(DS_backprop_network(backprop));
 
   DS_backprop_free(backprop);
+  for (size_t i = 0; i < NUM_TRAINING; ++i) {
+    DS_FREE(ys[i]);
+  }
+  DS_FREE(ys);
   DS_FREE(x);
+  DS_FREE(xs);
 }
 
 void run_gui(void) {

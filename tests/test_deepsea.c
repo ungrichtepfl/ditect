@@ -339,6 +339,8 @@ void test_network_backprop_error_sums_single_input(void) {
   DS_FLOAT y[LAYER_1] = {0.5, -0.3};
   DS_FLOAT *xs[1] = {&x[0]};
   DS_FLOAT *ys[1] = {&y[0]};
+  DS_Labelled_Inputs labelled_inputs = {
+      .inputs = xs, .labels = ys, .count = num_training};
 
   DS_FLOAT error_bias_1[LAYER_2] = {0.02287103, 0.01615626, 0.0095477};
   DS_FLOAT error_bias_2[LAYER_3] = {0.04801298, 0.21041785};
@@ -351,7 +353,7 @@ void test_network_backprop_error_sums_single_input(void) {
   DS_FLOAT *error_weights[NUM_LAYERS - 1] = {&error_weight_1[0],
                                              &error_weight_2[0]};
 
-  DS_backprop_learn_once(backprop, xs, ys, num_training, learning_rate);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate);
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     size_t n = backprop->network->layer_sizes[l + 1];
@@ -392,7 +394,10 @@ void test_network_backprop_double_input(void) {
   DS_FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
   DS_FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
 
-  DS_backprop_learn_once(backprop, xs, ys, num_training, learning_rate);
+  DS_Labelled_Inputs labelled_inputs = {
+      .inputs = xs, .labels = ys, .count = num_training};
+
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate);
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     size_t n = backprop->network->layer_sizes[l + 1];
@@ -423,6 +428,8 @@ void test_network_backprop_double_input_twice(void) {
   DS_FLOAT y2[LAYER_1] = {-0.3, 0.7};
   DS_FLOAT *xs[2] = {&x1[0], &x2[0]};
   DS_FLOAT *ys[2] = {&y1[0], &y2[0]};
+  DS_Labelled_Inputs labelled_inputs = {
+      .inputs = xs, .labels = ys, .count = num_training};
 
   DS_FLOAT bias_1[LAYER_2] = {0.05485079, 0.16633528, 0.27771601};
   DS_FLOAT bias_2[LAYER_3] = {0.15204091, 0.34987652};
@@ -434,8 +441,8 @@ void test_network_backprop_double_input_twice(void) {
   DS_FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
   DS_FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
 
-  DS_backprop_learn_once(backprop, xs, ys, num_training, learning_rate);
-  DS_backprop_learn_once(backprop, xs, ys, num_training, learning_rate);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate);
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     size_t n = backprop->network->layer_sizes[l + 1];
