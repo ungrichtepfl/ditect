@@ -105,21 +105,30 @@ void DS_FILE_file_list_print_labelled(const DS_FILE_FileList *const file_list) {
 }
 
 size_t DS_FILE_get_label(const char *const file_path) {
-  // Extract the basename
-  const char *basename = strrchr(file_path, '/');
-  basename = (basename) ? basename + 1 : file_path;
+  // Get the basename (the last part of the path)
+  char *dir_path = DS_MALLOC(strlen(file_path) + 1);
+  strcpy(dir_path, file_path); // Duplicate file path to safely manipulate it
 
-  // Remove the file extension
-  char *dot = strrchr(basename, '.');
-  size_t length = (dot) ? (size_t)(dot - basename) : strlen(basename);
+  char *last_slash = strrchr(dir_path, '/');
+  if (last_slash) {
+    *last_slash = '\0'; // Null-terminate to get the directory part
+  } else {
+    DS_ERROR("Could not get label for \"%s\" wrong format. Returning 0.",
+             file_path);
+    DS_FREE(dir_path);
+    return 0;
+  }
 
-  // Create a temporary string to hold the numeric part
-  char numeric_part[256] = {0};
-  strncpy(numeric_part, basename, length);
-  numeric_part[length] = '\0'; // Null-terminate the string
+  // Get the name of the parent directory
+  char *parent_dir = strrchr(dir_path, '/');
+  if (parent_dir) {
+    parent_dir++; // Move past the '/' to get the actual directory name
+  } else {
+    parent_dir = dir_path; // If there is no '/', the directory is the root
+  }
 
-  // Convert the numeric part to size_t
-  size_t result = (size_t)strtoul(numeric_part, NULL, 10); // Base 10 conversion
-
-  return result;
+  // Convert the parent directory name to size_t
+  size_t label = (size_t)strtoul(parent_dir, NULL, 10); // Convert to size_t
+  DS_FREE(dir_path);
+  return label;
 }
