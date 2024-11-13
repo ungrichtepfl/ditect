@@ -10,6 +10,9 @@
 #ifndef DS_CALLOC
 #define DS_CALLOC calloc
 #endif
+#ifndef DS_REALLOC
+#define DS_REALLOC realloc
+#endif
 #ifndef DS_FREE
 #define DS_FREE free
 #endif
@@ -33,6 +36,13 @@ typedef struct {
   DS_FLOAT *in;
   size_t len;
 } DS_Input;
+
+typedef struct {
+  DS_Input input;
+  /// Activations of output layer in binary, e.g. for 4 neurons in last layer a
+  /// label of 11 corresponds to 1101 in the output layer.
+  size_t label;
+} DS_Labelled_Input;
 
 void DS_input_free(DS_Input *const input);
 

@@ -1,4 +1,5 @@
 #include "deepsea.h"
+#include "deepsea_file.h"
 #include "deepsea_png.h"
 #include "parser.h"
 #include <assert.h>
@@ -18,12 +19,17 @@
 
 void train(const char *const data_path) {
 
-  DS_PNG_Input *png_input = DS_PNG_input_load_grey(data_path);
-  if (!png_input) {
-    DS_EXIT(1);
-  }
+  DS_FILE_FileList *data_file_paths = DS_FILE_get_files(data_path);
+  DS_ASSERT(data_file_paths, "Could not create file lists.");
+  DS_ASSERT(data_file_paths->count > 0, "No files found.");
+  DS_FILE_file_list_print_labelled(data_file_paths);
+  DS_PNG_Input *png_input = DS_PNG_input_load_grey(data_file_paths->paths[0]);
+  DS_ASSERT(png_input, "Could not read png.");
+
+  DS_FILE_file_list_free(data_file_paths);
   DS_PNG_input_print(png_input);
   DS_PNG_input_free(png_input);
+
 
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
   DS_FLOAT learing_rate = 0.01;
