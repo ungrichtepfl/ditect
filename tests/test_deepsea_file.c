@@ -78,6 +78,19 @@ void test_file_list_creation_leak(void) {
   DS_FILE_file_list_free(file_list);
 }
 
+void test_file_list_get_random_bucket_leak(void) {
+  DS_FILE_FileList *file_list = DS_FILE_get_files(TEST_DIR);
+  int i = 0;
+  while (DS_FILE_get_random_bucket(file_list, 2)) {
+    ++i;
+  }
+
+  SEE_assert(i > 0, "It did not return any bucket");
+
+  DS_FILE_file_list_free(file_list);
+}
+
 SEE_RUN_TESTS(test_get_label_from_directory_name,
               test_label_from_number_to_binary_array,
-              test_file_list_creation_leak)
+              test_file_list_creation_leak,
+              test_file_list_get_random_bucket_leak)
