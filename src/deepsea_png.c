@@ -7,16 +7,8 @@
 #include <string.h>
 
 #define MAX_PNG_GRAY_VALUE 255.
-struct DS_PNG_Input {
-  DS_FLOAT *data;
-  size_t width;
-  size_t height;
-  DS_PNG_Type type;
-};
 
-typedef struct DS_PNG_Input DS_PNG_Input;
-
-DS_PNG_Input *DS_PNG_input_load_grey(const char *const png_image_path) {
+DS_PNG_Input DS_PNG_input_load_grey(const char *const png_image_path) {
   png_image image;
   memset(&image, 0, sizeof(image));
   image.version = PNG_IMAGE_VERSION;
@@ -89,8 +81,4 @@ void DS_PNG_input_print(const DS_PNG_Input *const png_input) {
 void DS_PNG_input_free(DS_PNG_Input *const png_input) {
   DS_FREE(png_input->data);
   DS_FREE(png_input);
-}
-
-const DS_FLOAT *DS_PNG_input_get_data(const DS_PNG_Input *const png_input) {
-  return png_input->data;
 }

@@ -169,6 +169,7 @@ static inline int _SEE_check_memory(void) {
 
 #define SEE_DEBUG_MALLOC _SEE_debug_malloc
 #define SEE_DEBUG_CALLOC _SEE_debug_calloc
+#define SEE_DEBUG_REALLOC _SEE_debug_realloc
 #define SEE_DEBUG_FREE _SEE_debug_free
 
 static bool _SEE_test_failed = false;

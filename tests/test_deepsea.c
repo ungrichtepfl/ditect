@@ -3,13 +3,11 @@
 #define DS_MALLOC SEE_DEBUG_MALLOC
 #define DS_FREE SEE_DEBUG_FREE
 #define DS_CALLOC SEE_DEBUG_CALLOC
+#define DS_REALLOC SEE_DEBUG_REALLOC
 
 #include "deepsea.c"
-#include <stdio.h>
 
-#define TEST_DIR "./tests/"
-#define TEST_OUT_DIR TEST_DIR "out/"
-#define TEST_DATA_DIR TEST_DIR "data/"
+#include "common.h"
 
 void test_idx(void) {
 

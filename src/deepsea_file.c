@@ -75,17 +75,21 @@ static void fill_file_list(const char *const dir_path,
   closedir(dir);
 }
 
-DS_FILE_FileList DS_FILE_get_files(const char *const dir_path) {
-  DS_FILE_FileList file_list = {0};
-  fill_file_list(dir_path, &file_list);
+DS_FILE_FileList *DS_FILE_get_files(const char *const dir_path) {
+  DS_FILE_FileList *file_list =
+      DS_CALLOC(1, sizeof(*file_list)); // Sets file count to 0
+  DS_ASSERT(file_list, "Could not create file list. Out of memory.");
+  fill_file_list(dir_path, file_list);
   return file_list;
 }
 
 void DS_FILE_file_list_free(DS_FILE_FileList *const file_list) {
   for (size_t i = 0; i < file_list->count; ++i) {
-    free(file_list->paths[i]);
+    DS_FREE(file_list->paths[i]);
   }
-  free(file_list->paths);
+  DS_FREE(file_list->paths);
+
+  DS_FREE(file_list);
 }
 
 void DS_FILE_file_list_print(const DS_FILE_FileList *const file_list) {
@@ -110,6 +114,8 @@ void DS_FILE_file_list_print_labelled(const DS_FILE_FileList *const file_list,
 size_t DS_FILE_get_label_from_directory_name(const char *const file_path) {
   // Get the basename (the last part of the path)
   char *dir_path = DS_MALLOC(strlen(file_path) + 1);
+  DS_ASSERT(dir_path,
+            "Could not get label from directory name. Out of memory.");
   strcpy(dir_path, file_path); // Duplicate file path to safely manipulate it
 
   char *last_slash = strrchr(dir_path, '/');
@@ -134,11 +140,9 @@ size_t DS_FILE_get_label_from_directory_name(const char *const file_path) {
 
 void file_label_to_deepsea_label(size_t file_label, DS_FLOAT *deepsea_label,
                                  const size_t num_outputs) {
-  // Start with the least significant bit and move to the most significant bit
   for (size_t i = 0; i < num_outputs; i++) {
     // Set the current bit in the array (0 or 1)
     deepsea_label[i] = (DS_FLOAT)(file_label & 1);
-    // Right shift the number by 1 for the next bit
     file_label >>= 1;
   }
 }

@@ -12,7 +12,7 @@ typedef struct {
 
 size_t DS_FILE_get_label_from_directory_name(const char *const file_path);
 
-DS_FILE_FileList DS_FILE_get_files(const char *const dir_path);
+DS_FILE_FileList* DS_FILE_get_files(const char *const dir_path);
 
 void DS_FILE_file_list_free(DS_FILE_FileList *const file_list);
 

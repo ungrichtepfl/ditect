@@ -3,9 +3,12 @@
 #define DS_MALLOC SEE_DEBUG_MALLOC
 #define DS_FREE SEE_DEBUG_FREE
 #define DS_CALLOC SEE_DEBUG_CALLOC
+#define DS_REALLOC SEE_DEBUG_REALLOC
 
 #include "deepsea.c"
 #include "deepsea_file.c"
+
+#include "common.h"
 
 void test_get_label_from_directory_name(void) {
   char *dir = "./some/dir/19/myfile";
@@ -69,5 +72,12 @@ void test_label_from_number_to_binary_array(void) {
         "Wrong binary array for number 10 cropped output in index %lu.", i);
 }
 
+void test_file_list_creation_leak(void) {
+  DS_FILE_FileList *file_list = DS_FILE_get_files(TEST_DIR);
+
+  DS_FILE_file_list_free(file_list);
+}
+
 SEE_RUN_TESTS(test_get_label_from_directory_name,
-              test_label_from_number_to_binary_array)
+              test_label_from_number_to_binary_array,
+              test_file_list_creation_leak)
