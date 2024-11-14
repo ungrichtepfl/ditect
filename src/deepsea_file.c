@@ -132,14 +132,14 @@ size_t DS_FILE_get_label_from_directory_name(const char *const file_path) {
   return label;
 }
 
-void label_from_number_to_binary_array(size_t num, size_t *arr,
-                                       const size_t arr_size) {
+void file_label_to_deepsea_label(size_t file_label, DS_FLOAT *deepsea_label,
+                                 const size_t num_outputs) {
   // Start with the least significant bit and move to the most significant bit
-  for (size_t i = 0; i < arr_size; i++) {
+  for (size_t i = 0; i < num_outputs; i++) {
     // Set the current bit in the array (0 or 1)
-    arr[arr_size - 1 - i] = (num & 1);
+    deepsea_label[i] = (DS_FLOAT)(file_label & 1);
     // Right shift the number by 1 for the next bit
-    num >>= 1;
+    file_label >>= 1;
   }
 }
 
