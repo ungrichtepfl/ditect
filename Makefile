@@ -26,7 +26,7 @@ else
 endif
 
 ifeq ("$(shell uname -m)","x86_64")
-	C_RAYLIB=-I ./raylib-5.0_linux_amd64/include/ 
+	C_RAYLIB=-I ./raylib-5.0_linux_amd64/include/
 	LD_RAYLIB=-L./raylib-5.0_linux_amd64/lib -l:libraylib.a -ldl -lpthread
 else
 	C_RAYLIB=$(shell pkg-config --cflags "raylib")
@@ -90,7 +90,8 @@ tests: $(TEST_EXE)
 
 .PHONY: run-tests
 run-tests: tests
-	@for exe in "$(TEST_EXE)"; do \
+	@for exe in $(TEST_EXE); do \
+		echo "\033[0;34mRunning test file \"$$exe\":\033[0m"; \
 		./$$exe; \
 	done
 
