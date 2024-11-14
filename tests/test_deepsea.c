@@ -7,6 +7,10 @@
 #include "deepsea.c"
 #include <stdio.h>
 
+#define TEST_DIR "./tests/"
+#define TEST_OUT_DIR TEST_DIR "out/"
+#define TEST_DATA_DIR TEST_DIR "data/"
+
 void test_idx(void) {
 
   DS_FLOAT W[6] = {1., 2., 3., 4., 5., 6.};
@@ -157,6 +161,37 @@ void test_network_creation_random(void) {
   DS_network_free(network);
 }
 
+void network_eq(DS_Network *network1, DS_Network *network2) {
+  SEE_assert_eqlu(network1->num_layers, network2->num_layers,
+                  "Number of layers");
+  for (size_t l = 0; l < network1->num_layers; ++l)
+    SEE_assert_eqlu(network1->layer_sizes[l], network2->layer_sizes[l],
+                    "Layer sizes index %lu", l);
+  for (size_t l = 0; l < network1->num_layers - 1; ++l) {
+    size_t m = network1->layer_sizes[l];
+    size_t n = network1->layer_sizes[l + 1];
+    for (size_t i = 0; i < n; ++i) {
+      SEE_assert_eqf(network1->biases[l][i], network2->biases[l][i],
+                     "Bias l=%lu, i=%lu", l, i);
+      for (size_t j = 0; j < m; ++j) {
+        SEE_assert_eqf(network1->weights[l][IDX(i, j, m)],
+                       network2->weights[l][IDX(i, j, m)],
+                       "Weight l=%lu, i=%lu, j=%lu", l, i, j);
+      }
+    }
+  }
+  if (network1->output_labels) {
+    SEE_assert_neqp(network2->output_labels, NULL, "Output labels are NULL.");
+    const size_t L = network1->layer_sizes[network1->num_layers - 1];
+    for (size_t i = 0; i < L; ++i)
+      SEE_assert_eqstr(network1->output_labels[i], network2->output_labels[i],
+                       "Output label index %lu", i);
+  } else {
+    SEE_assert_eqp(network2->output_labels, NULL,
+                   "Output labels are not NULL.");
+  }
+}
+
 /* -------- START DEFINITION OF TEST NETWORK -------- */
 #define NUM_LAYERS 3
 #define LAYER_1 2
@@ -174,6 +209,11 @@ char *OUTPUT_LABELS[LAYER_3] = {"First Label", "Second Label"};
 DS_Network *create_test_network(void) {
   return DS_network_create(&WEIGHTS[0], &BIASES[0], LAYER_SIZES, NUM_LAYERS,
                            OUTPUT_LABELS);
+}
+
+DS_Network *create_test_network_without_labels(void) {
+  return DS_network_create(&WEIGHTS[0], &BIASES[0], LAYER_SIZES, NUM_LAYERS,
+                           NULL);
 }
 
 void check_network_empty_label_correctness(const DS_Network *const network) {
@@ -235,6 +275,64 @@ void test_create_test_network_owned(void) {
       DS_network_create_owned(weights, biases, sizes, NUM_LAYERS, NULL);
   check_network_correctness(network);
   check_network_empty_label_correctness(network);
+  DS_network_free(network);
+}
+
+void test_network_eq(void) {
+  DS_Network *network1 = create_test_network();
+  DS_Network *network2 = create_test_network();
+  network_eq(network1, network2);
+
+  DS_network_free(network1);
+  DS_network_free(network2);
+}
+
+void check_two_files(char *file1, char *file2) {
+  FILE *f1 = fopen(file1, "r");
+  FILE *f2 = fopen(file2, "r");
+  SEE_assert_neqp(f1, NULL, "File 1 is NULL.");
+  SEE_assert_neqp(f2, NULL, "File 2 is NULL.");
+
+  char *ret1 = NULL;
+  char *ret2 = NULL;
+  char buffer1[1024] = {0};
+  char buffer2[1024] = {0};
+  while (1) {
+    ret1 = fgets(buffer1, 1024, f1);
+    ret2 = fgets(buffer2, 1024, f2);
+    SEE_assert((ret1 && ret2) || (!ret1 && !ret2),
+               "One file ended before the other.");
+    if (!ret1 || !ret2)
+      break;
+
+    SEE_assert_eqstr(buffer1, buffer2, "Files have not the same content.");
+  };
+
+  SEE_assert_eqi(fclose(f1), 0, "File 1 not closed");
+  SEE_assert_eqi(fclose(f2), 0, "File 2 not closed");
+}
+
+void test_check_two_files(void) {
+  char *file1 = TEST_DATA_DIR "identical1.txt";
+  char *file2 = TEST_DATA_DIR "identical2.txt";
+  check_two_files(file1, file2);
+}
+
+void test_save_network_with_labels(void) {
+  DS_Network *network = create_test_network();
+  char *saved_file = TEST_OUT_DIR "network.txt";
+  char *compared_file = TEST_DATA_DIR "network_with_labels.txt";
+  DS_network_save(network, saved_file);
+  check_two_files(saved_file, compared_file);
+  DS_network_free(network);
+}
+
+void test_save_network_without_labels(void) {
+  DS_Network *network = create_test_network_without_labels();
+  char *saved_file = TEST_OUT_DIR "network.txt";
+  char *compared_file = TEST_DATA_DIR "network_without_labels.txt";
+  DS_network_save(network, saved_file);
+  check_two_files(saved_file, compared_file);
   DS_network_free(network);
 }
 
@@ -466,7 +564,9 @@ SEE_RUN_TESTS(test_sigmoid_single, test_sigmoid_multi,
               test_dot_add_sum, test_dot_add_permutation, test_idx,
               test_distance_squared_zero, test_distance_squared,
               test_dot_add_non_symmetric, test_network_creation_random,
-              test_create_test_network, test_create_test_network_owned,
+              test_create_test_network, test_network_eq,
+              test_create_test_network_owned, test_check_two_files,
+              test_save_network_with_labels, test_save_network_without_labels,
               test_network_feedforward, test_backprop_create,
               test_backprop_create_from_network,
               test_network_backprop_last_error,

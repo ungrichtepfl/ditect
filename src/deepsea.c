@@ -38,7 +38,7 @@ typedef struct DS_Network DS_Network;
 
 #define SERIAL_SEP ";"
 
-char *read_line(FILE *file) {
+static char *read_line(FILE *file) {
   int bufferSize = 128; // Initial buffer size
   int length = 0;       // Current length of the string
   char *buffer = DS_MALLOC(bufferSize);
@@ -82,7 +82,7 @@ bool DS_network_save(const DS_Network *const network,
     return false;
   }
 
-  fprintf(f, "%lu\n", network->num_layers);
+  fprintf(f, "%lu" SERIAL_SEP "\n", network->num_layers);
   for (size_t l = 0; l < network->num_layers; ++l)
     fprintf(f, "%lu" SERIAL_SEP, network->layer_sizes[l]);
   fprintf(f, "\n");
@@ -117,12 +117,12 @@ bool DS_network_save(const DS_Network *const network,
 }
 
 typedef enum {
-  NUM_LAYERS,
-  LAYER_SIZES,
-  BIASES,
-  WEIGHTS,
-  OUTPUT_LABELS,
-  PARSING_ERROR,
+  PS_NUM_LAYERS,
+  PS_LAYER_SIZES,
+  PS_BIASES,
+  PS_WEIGHTS,
+  PS_OUTPUT_LABELS,
+  PS_PARSING_ERROR,
 } NetworkParsingState;
 
 DS_Network *DS_network_load(const char *const file_path) {
@@ -138,25 +138,25 @@ DS_Network *DS_network_load(const char *const file_path) {
   size_t num_layers = 0;
   char **output_labels = NULL;
 
-  NetworkParsingState parsing_state = NUM_LAYERS;
+  NetworkParsingState parsing_state = PS_NUM_LAYERS;
   size_t current_line = 1;
   size_t relative_line_index = 0;
   char *line = NULL;
   for (line = read_line(f); line != NULL;
        ++current_line, DS_FREE(line), line = read_line(f)) {
     switch (parsing_state) {
-    case NUM_LAYERS: {
+    case PS_NUM_LAYERS: {
       errno = 0;
       num_layers = strtoul(line, NULL, 10);
       if (num_layers == 0 && errno != 0) {
         DS_ERROR("Could not parse line %lu: %s", current_line, strerror(errno));
         goto load_error;
       }
-      parsing_state = LAYER_SIZES;
+      parsing_state = PS_LAYER_SIZES;
       relative_line_index = 0;
       continue;
     } break;
-    case LAYER_SIZES: {
+    case PS_LAYER_SIZES: {
       sizes = DS_MALLOC(num_layers * sizeof(sizes));
       DS_ASSERT(sizes, "Could not parse network. Out of memeory.");
       size_t i = 0;
@@ -178,11 +178,11 @@ DS_Network *DS_network_load(const char *const file_path) {
                  current_line, num_layers, i);
         goto load_error;
       }
-      parsing_state = BIASES;
+      parsing_state = PS_BIASES;
       relative_line_index = 0;
       continue;
     } break;
-    case BIASES: {
+    case PS_BIASES: {
       if (relative_line_index == 0) {
         biases =
             DS_CALLOC(num_layers - 1,
@@ -216,12 +216,12 @@ DS_Network *DS_network_load(const char *const file_path) {
         goto load_error;
       }
       if (relative_line_index + 1 == num_layers - 1) {
-        parsing_state = WEIGHTS;
+        parsing_state = PS_WEIGHTS;
         relative_line_index = 0;
         continue;
       }
     } break;
-    case WEIGHTS: {
+    case PS_WEIGHTS: {
       if (relative_line_index == 0) {
         weights =
             DS_CALLOC(num_layers - 1,
@@ -256,12 +256,12 @@ DS_Network *DS_network_load(const char *const file_path) {
         goto load_error;
       }
       if (relative_line_index + 1 == num_layers - 1) {
-        parsing_state = OUTPUT_LABELS;
+        parsing_state = PS_OUTPUT_LABELS;
         relative_line_index = 0;
         continue;
       }
     } break;
-    case OUTPUT_LABELS: {
+    case PS_OUTPUT_LABELS: {
       const size_t L = sizes[num_layers - 1];
       size_t i = 0;
       output_labels = DS_CALLOC(L, sizeof(output_labels));
@@ -282,12 +282,12 @@ DS_Network *DS_network_load(const char *const file_path) {
             current_line, L, i);
         goto load_error;
       }
-      parsing_state = PARSING_ERROR;
+      parsing_state = PS_PARSING_ERROR;
       relative_line_index = 0;
       continue;
 
     } break;
-    case PARSING_ERROR: {
+    case PS_PARSING_ERROR: {
       DS_ERROR("Too many lines in file. Ignoring line %lu...", current_line);
     } break;
     default:
