@@ -116,6 +116,226 @@ bool DS_network_save(const DS_Network *const network,
   return true;
 }
 
+typedef enum {
+  NUM_LAYERS,
+  LAYER_SIZES,
+  BIASES,
+  WEIGHTS,
+  OUTPUT_LABELS,
+  PARSING_ERROR,
+} NetworkParsingState;
+
+DS_Network *DS_network_load(const char *const file_path) {
+  FILE *f = NULL;
+  if ((f = fopen(file_path, "r")) == NULL) {
+    DS_ERROR("Could not open file \"%s\": %s", file_path, strerror(errno));
+    return NULL;
+  }
+
+  DS_FLOAT **weights = NULL;
+  DS_FLOAT **biases = NULL;
+  size_t *sizes = NULL;
+  size_t num_layers = 0;
+  char **output_labels = NULL;
+
+  NetworkParsingState parsing_state = NUM_LAYERS;
+  size_t current_line = 1;
+  size_t relative_line_index = 0;
+  char *line = NULL;
+  for (line = read_line(f); line != NULL;
+       ++current_line, DS_FREE(line), line = read_line(f)) {
+    switch (parsing_state) {
+    case NUM_LAYERS: {
+      errno = 0;
+      num_layers = strtoul(line, NULL, 10);
+      if (num_layers == 0 && errno != 0) {
+        DS_ERROR("Could not parse line %lu: %s", current_line, strerror(errno));
+        goto load_error;
+      }
+      parsing_state = LAYER_SIZES;
+      relative_line_index = 0;
+      continue;
+    } break;
+    case LAYER_SIZES: {
+      sizes = DS_MALLOC(num_layers * sizeof(sizes));
+      DS_ASSERT(sizes, "Could not parse network. Out of memeory.");
+      size_t i = 0;
+      for (char *size_s = strtok(line, SERIAL_SEP); size_s != NULL;
+           size_s = strtok(NULL, SERIAL_SEP), ++i) {
+        if (i < num_layers) {
+          errno = 0;
+          sizes[i] = strtoul(size_s, NULL, 10);
+          if (sizes[i] == 0 && errno != 0) {
+            DS_ERROR("Could not parse line %lu. Wrong layer size format: %s",
+                     current_line, strerror(errno));
+            goto load_error;
+          }
+        }
+      }
+      if (i != num_layers) {
+        DS_ERROR("Could not parse line %lu. Wrong number of sizes, expected "
+                 "%lu got %lu",
+                 current_line, num_layers, i);
+        goto load_error;
+      }
+      parsing_state = BIASES;
+      relative_line_index = 0;
+      continue;
+    } break;
+    case BIASES: {
+      if (relative_line_index == 0) {
+        biases =
+            DS_CALLOC(num_layers - 1,
+                      sizeof(biases)); // Such that go to works (check if NULL)
+        DS_ASSERT(biases, "Could not load network. Out of memory.");
+      }
+      const size_t n = sizes[relative_line_index + 1];
+      DS_PRINTF("%lu, n=%lu, num_layers=%lu\n", relative_line_index, n,
+                num_layers);
+      biases[relative_line_index] = DS_MALLOC(n * sizeof(biases[0]));
+      DS_ASSERT(biases[relative_line_index],
+                "Could not load network. Out of memory.");
+
+      size_t i = 0;
+      for (char *bias_s = strtok(line, SERIAL_SEP); bias_s != NULL;
+           bias_s = strtok(NULL, SERIAL_SEP), ++i) {
+        if (i < n) {
+          errno = 0;
+          biases[relative_line_index][i] = strtof(bias_s, NULL);
+          if (biases[relative_line_index][i] == 0 && errno != 0) {
+            DS_ERROR("Could not parse line %lu. Wrong layer size format: %s",
+                     current_line, strerror(errno));
+            goto load_error;
+          }
+        }
+      }
+      if (i != n) {
+        DS_ERROR("Could not parse line %lu. Wrong number of biases, expected "
+                 "%lu got %lu",
+                 current_line, n, i);
+        goto load_error;
+      }
+      if (relative_line_index + 1 == num_layers - 1) {
+        parsing_state = WEIGHTS;
+        relative_line_index = 0;
+        continue;
+      }
+    } break;
+    case WEIGHTS: {
+      if (relative_line_index == 0) {
+        weights =
+            DS_CALLOC(num_layers - 1,
+                      sizeof(weights)); // Such that go to works (check if NULL)
+        DS_ASSERT(weights, "Could not load network. Out of memory.");
+      }
+      const size_t n = sizes[relative_line_index + 1];
+      const size_t m = sizes[relative_line_index];
+      const size_t len = m * n;
+
+      weights[relative_line_index] = DS_MALLOC(len * sizeof(weights[0]));
+      DS_ASSERT(weights[relative_line_index],
+                "Could not load network. Out of memory.");
+
+      size_t i = 0;
+      for (char *weight_s = strtok(line, SERIAL_SEP); weight_s != NULL;
+           weight_s = strtok(NULL, SERIAL_SEP), ++i) {
+        if (i < len) {
+          errno = 0;
+          weights[relative_line_index][i] = strtof(weight_s, NULL);
+          if (weights[relative_line_index][i] == 0 && errno != 0) {
+            DS_ERROR("Could not parse line %lu. Wrong layer size format: %s",
+                     current_line, strerror(errno));
+            goto load_error;
+          }
+        }
+      }
+      if (i != len) {
+        DS_ERROR("Could not parse line %lu. Wrong number of weights, expected "
+                 "%lu got %lu",
+                 current_line, len, i);
+        goto load_error;
+      }
+      if (relative_line_index + 1 == num_layers - 1) {
+        parsing_state = OUTPUT_LABELS;
+        relative_line_index = 0;
+        continue;
+      }
+    } break;
+    case OUTPUT_LABELS: {
+      const size_t L = sizes[num_layers - 1];
+      size_t i = 0;
+      output_labels = DS_CALLOC(L, sizeof(output_labels));
+      DS_ASSERT(output_labels, "Could not load network. Out of memory.");
+      for (char *label = strtok(line, SERIAL_SEP); label != NULL;
+           label = strtok(NULL, SERIAL_SEP), ++i) {
+        if (i < L) {
+          output_labels[i] = DS_MALLOC(strlen(label) + 1);
+          DS_ASSERT(output_labels[i], "Could not load network. Out of memory.");
+          strcpy(output_labels[i], label);
+        }
+      }
+
+      if (i != L) {
+        DS_ERROR(
+            "Could not parse line %lu. Wrong number of output labels, expected "
+            "%lu got %lu",
+            current_line, L, i);
+        goto load_error;
+      }
+      parsing_state = PARSING_ERROR;
+      relative_line_index = 0;
+      continue;
+
+    } break;
+    case PARSING_ERROR: {
+      DS_ERROR("Too many lines in file. Ignoring line %lu...", current_line);
+    } break;
+    default:
+      DS_ASSERT(false, "Unknown parsing state %d!", parsing_state);
+    }
+    ++relative_line_index;
+  }
+
+  DS_Network *network = DS_network_create_owned(weights, biases, sizes,
+                                                num_layers, output_labels);
+
+  if (fclose(f) != 0) {
+    DS_ERROR("Could not close file \"%s\": %s", file_path, strerror(errno));
+    DS_network_free(network);
+    return NULL;
+  }
+
+  return network;
+
+load_error:
+  if (line)
+    DS_FREE(line);
+  if (sizes)
+    DS_FREE(sizes);
+  if (biases) {
+    for (size_t l = 0; l < num_layers - 1; ++l) {
+      if (biases[l])
+        DS_FREE(biases[l]);
+    }
+  }
+  if (weights) {
+    for (size_t l = 0; l < num_layers - 1; ++l) {
+      if (weights[l])
+        DS_FREE(weights[l]);
+    }
+  }
+  if (output_labels) {
+    const size_t L =
+        sizes[num_layers -
+              1]; // sizes and num_layers must exist if output_labels exist
+    for (size_t l = 0; l < L; ++l) {
+      if (output_labels[l])
+        DS_FREE(output_labels[l]);
+    }
+  }
+  return NULL;
+}
+
 /// Normal random numbers generator - Marsaglia algorithm.
 DS_FLOAT *DS_randn(const size_t n) {
   DS_init_rand(-1);
@@ -187,7 +407,8 @@ DS_Network *DS_network_create_owned(DS_FLOAT **const weights,
                                     const size_t num_layers,
                                     char **const output_labels) {
   DS_ASSERT(num_layers > 1,
-            "Cannot create network. At least 2 layers are needed.");
+            "Cannot create network. At least 2 layers are needed, got %lu.",
+            num_layers);
   DS_Network *network = DS_MALLOC(sizeof(*network));
   DS_ASSERT(network, "Could not create network, out of memory.");
 
@@ -295,19 +516,27 @@ void DS_network_free(DS_Network *const network) {
 
 void DS_network_print(const DS_Network *const network) {
 
-  DS_PRINTF("Network: \n");
+  DS_PRINTF("Network:\n");
+  if (network->output_labels) {
+    DS_PRINTF("Output labels: [ ");
+    const size_t L = network->layer_sizes[network->num_layers - 1];
+    for (size_t i = 0; i < L; ++i)
+      DS_PRINTF("%s ", network->output_labels[i]);
+    DS_PRINTF("]\n");
+  } else {
+    DS_PRINTF("No output layers.");
+  }
   DS_PRINTF("Number of layers: %zu\n", network->num_layers);
   DS_PRINTF("Layer sizes: [ ");
-  for (size_t l = 0; l < network->num_layers; ++l) {
+  for (size_t l = 0; l < network->num_layers; ++l)
     DS_PRINTF("%zu ", network->layer_sizes[l]);
-  }
+
   DS_PRINTF("]\n");
 
   for (size_t l = 0; l < network->num_layers - 1; ++l) {
     DS_PRINTF("Biases %zu: [ ", l);
-    for (size_t i = 0; i < network->layer_sizes[l + 1]; ++i) {
+    for (size_t i = 0; i < network->layer_sizes[l + 1]; ++i)
       DS_PRINTF("%f ", network->biases[l][i]);
-    }
     DS_PRINTF("]\n");
   }
 

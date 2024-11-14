@@ -69,6 +69,9 @@ void DS_randno(DS_FLOAT *const values, const size_t n);
 bool DS_network_save(const DS_Network *const network,
                      const char *const file_path);
 
+
+DS_Network *DS_network_load(const char *const file_path);
+
 DS_Network *DS_network_create_random(const size_t *const sizes,
                                      const size_t num_layers,
                                      char *const *const output_labels);

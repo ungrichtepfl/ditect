@@ -10,8 +10,10 @@
 #include <string.h>
 
 #define NUM_LAYERS 3
-#define NUM_INPUTS (28 * 28)
-#define NUM_OUTPUTS 10
+/* #define NUM_INPUTS (28 * 28) */
+/* #define NUM_OUTPUTS 10 */
+#define NUM_INPUTS 3
+#define NUM_OUTPUTS 2
 #define WIN_HEIGHT (NUM_INPUTS / 2)
 #define WIN_WIDTH WIN_HEIGHT
 #define TARGET_FPS 60
@@ -38,11 +40,11 @@ void train(const char *const data_path) {
   }
   DS_FILE_file_list_free(&data_file_paths);
 
-  size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 100, NUM_OUTPUTS};
+  size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 4, NUM_OUTPUTS};
   DS_FLOAT learing_rate = 0.01;
-  DS_Backprop *backprop = DS_brackprop_create(layer_sizes, NUM_LAYERS, NULL);
-
-  // DS_network_print(DS_backprop_network(backprop));
+  char *output_labels[NUM_OUTPUTS] = {"out1", "out2"};
+  DS_Backprop *backprop =
+      DS_brackprop_create(layer_sizes, NUM_LAYERS, output_labels);
 
   DS_FLOAT *x = DS_randn(NUM_INPUTS);
 
@@ -67,10 +69,18 @@ void train(const char *const data_path) {
   DS_PRINTF("cost of network AFTER learing: %.2f\n", cost);
 
   DS_network_print_activation_layer(DS_backprop_network(backprop));
-
-  if (!DS_network_save(DS_backprop_network(backprop), "network.txt")) {
+  char *saved_network_file = "network.txt";
+  if (!DS_network_save(DS_backprop_network(backprop), saved_network_file)) {
     DS_PRINTF("Failed to save network!\n");
   }
+  DS_Network *loaded_network = DS_network_load(saved_network_file);
+  if (loaded_network) {
+    DS_PRINTF("-------------ORIGINAL---------------\n");
+    DS_network_print(DS_backprop_network(backprop));
+    DS_PRINTF("-------------SAVED---------------\n");
+    DS_network_print(loaded_network);
+  } else
+    DS_ERROR("Could not load network.");
 
   DS_backprop_free(backprop);
   for (size_t i = 0; i < NUM_TRAINING; ++i) {
