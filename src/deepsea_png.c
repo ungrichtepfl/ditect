@@ -8,7 +8,7 @@
 
 #define MAX_PNG_GRAY_VALUE 255.
 
-DS_PNG_Input DS_PNG_input_load_grey(const char *const png_image_path) {
+DS_PNG_Input *DS_PNG_input_load_grey(const char *const png_image_path) {
   png_image image;
   memset(&image, 0, sizeof(image));
   image.version = PNG_IMAGE_VERSION;
@@ -37,6 +37,7 @@ DS_PNG_Input DS_PNG_input_load_grey(const char *const png_image_path) {
   DS_FREE(buffer);
 
   DS_PNG_Input *png_input = DS_MALLOC(sizeof(*png_input));
+  DS_ASSERT(png_input, "Could not create png input, out of memory.");
   png_input->data = data;
   png_input->width = image.width;
   png_input->height = image.height;
@@ -44,6 +45,7 @@ DS_PNG_Input DS_PNG_input_load_grey(const char *const png_image_path) {
 
   return png_input;
 }
+
 void DS_PNG_input_print(const DS_PNG_Input *const png_input) {
   switch (png_input->type) {
   case DS_PNG_Gray: {
