@@ -21,13 +21,13 @@
 
 void train(const char *const data_path) {
 
-  DS_FILE_FileList data_file_paths = DS_FILE_get_files(data_path);
-  DS_ASSERT(data_file_paths.count > 0, "No files found.");
+  DS_FILE_FileList *data_file_paths = DS_FILE_get_files(data_path);
+  DS_ASSERT(data_file_paths->count > 0, "No files found.");
 
-  DS_FILE_file_list_print_labelled(&data_file_paths, 10);
+  DS_FILE_file_list_print_labelled(data_file_paths, 10);
   DS_FILE_FileList *random_slice = NULL;
   bool first = true;
-  while ((random_slice = DS_FILE_get_random_bucket(&data_file_paths, 3)) !=
+  while ((random_slice = DS_FILE_get_random_bucket(data_file_paths, 3)) !=
          NULL) {
     if (first) {
       DS_PNG_Input *png_input = DS_PNG_input_load_grey(random_slice->paths[0]);
@@ -38,7 +38,7 @@ void train(const char *const data_path) {
       first = false;
     }
   }
-  DS_FILE_file_list_free(&data_file_paths);
+  DS_FILE_file_list_free(data_file_paths);
 
   size_t layer_sizes[NUM_LAYERS] = {NUM_INPUTS, 4, NUM_OUTPUTS};
   DS_FLOAT learing_rate = 0.01;
@@ -79,6 +79,7 @@ void train(const char *const data_path) {
     DS_network_print(DS_backprop_network(backprop));
     DS_PRINTF("-------------SAVED---------------\n");
     DS_network_print(loaded_network);
+    DS_network_free(loaded_network);
   } else
     DS_ERROR("Could not load network.");
 
