@@ -38,7 +38,7 @@ void train(const char *const data_path) {
         random_slice, DS_backprop_network(backprop));
     DS_backprop_learn_once(backprop, labelled_inputs, learing_rate);
     DS_FLOAT cost = DS_backprop_network_cost(backprop, labelled_inputs);
-    DS_PRINTF("cost of network AFTER learing: %.2f\n", cost);
+    DS_PRINTF("Cost of network AFTER learing: %.2f\n", cost);
     DS_labelled_inputs_free(labelled_inputs);
   }
   DS_FILE_file_list_free(data_file_paths);
@@ -48,6 +48,20 @@ void train(const char *const data_path) {
   }
 
   DS_backprop_free(backprop);
+}
+
+void test(const char *const data_path) {
+  DS_Network *network = DS_network_load(TRAINED_NETWORK_PATH);
+  DS_FILE_FileList *data_file_paths = DS_FILE_get_files(data_path);
+  DS_ASSERT(data_file_paths->count > 0, "No files found.");
+  DS_Labelled_Inputs *labelled_inputs =
+      DS_PNG_file_list_to_labelled_inputs(data_file_paths, network);
+
+  DS_FLOAT cost = DS_network_cost(network, labelled_inputs);
+  DS_PRINTF("Cost of network for testing set: %.2f\n", cost);
+  DS_labelled_inputs_free(labelled_inputs);
+  DS_FILE_file_list_free(data_file_paths);
+  DS_network_free(network);
 }
 
 void run_gui(void) {
@@ -71,7 +85,7 @@ int main(int argc, char *argv[]) {
 
   } break;
   case CLA_TESTING: {
-    // TODO:
+    test(cmd.data_path);
 
   } break;
   case CLA_TRAINING: {

@@ -190,8 +190,6 @@ DS_Network *DS_network_load(const char *const file_path) {
         DS_ASSERT(biases, "Could not load network. Out of memory.");
       }
       const size_t n = sizes[relative_line_index + 1];
-      DS_PRINTF("%lu, n=%lu, num_layers=%lu\n", relative_line_index, n,
-                num_layers);
       biases[relative_line_index] = DS_MALLOC(n * sizeof(biases[0]));
       DS_ASSERT(biases[relative_line_index],
                 "Could not load network. Out of memory.");
