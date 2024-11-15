@@ -1,6 +1,7 @@
 #include "deepsea.h"
 #include "deepsea_file.h"
 #include "deepsea_png.h"
+#include "limits.h"
 #include "parser.h"
 #include <assert.h>
 #include <errno.h>
@@ -11,14 +12,20 @@
 #include <string.h>
 
 #define NUM_LAYERS 3
-#define NUM_INPUTS (28 * 28)
+#define PNG_WIDTH 28
+#define NUM_INPUTS (PNG_WIDTH * PNG_WIDTH)
 #define NUM_OUTPUTS 10
 #define EPOCHS 30
 #define BATCH_SIZE 10
 #define LEARNING_RATE 3.
-#define WIN_HEIGHT (NUM_INPUTS / 2)
+#define SCALING 30
+#define WIN_HEIGHT (SCALING * PNG_WIDTH)
 #define WIN_WIDTH WIN_HEIGHT
-#define TARGET_FPS 60
+#define TARGET_FPS 30
+#define MIN_PIXEL_AFTER_RESIZE 4
+
+static_assert(NUM_INPUTS * SCALING * SCALING == WIN_HEIGHT * WIN_WIDTH,
+              "Scaling is wrong");
 
 #define TRAINED_NETWORK_PATH "trained_network.txt"
 
@@ -93,16 +100,41 @@ void predict(const char *const data_path) {
   DS_network_free(network);
 }
 
+#define MOUSE_POSITION_SIZE 4
 void run_gui(void) {
+  SetConfigFlags(FLAG_MSAA_4X_HINT);
   InitWindow(WIN_WIDTH, WIN_HEIGHT, "Ditect");
   SetTargetFPS(TARGET_FPS);
+  float thickness = MIN_PIXEL_AFTER_RESIZE * SCALING;
+  Vector2 mouse_positions[MOUSE_POSITION_SIZE] = {0};
+  size_t number_of_lines = 0;
 
-  while (!WindowShouldClose()) {
+  while (!WindowShouldClose() && !IsKeyPressed(KEY_Q)) {
+
     BeginDrawing();
-    ClearBackground(BLACK);
 
+    if (IsKeyPressed(KEY_R)) {
+      ClearBackground(BLACK);
+    }
+
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+      const Vector2 current_position = GetMousePosition();
+      number_of_lines++;
+      if (number_of_lines > MOUSE_POSITION_SIZE) {
+        if (MOUSE_POSITION_SIZE > 1)
+          memmove(&mouse_positions[0], &mouse_positions[1],
+                  (MOUSE_POSITION_SIZE - 1) * sizeof(current_position));
+        number_of_lines = MOUSE_POSITION_SIZE;
+      }
+      memcpy(&mouse_positions[number_of_lines - 1], &current_position,
+             sizeof(current_position));
+      DrawSplineBasis(mouse_positions, number_of_lines, thickness, WHITE);
+    } else {
+      number_of_lines = 0;
+    }
     EndDrawing();
   }
+  CloseWindow();
 }
 
 int main(int argc, char *argv[]) {
