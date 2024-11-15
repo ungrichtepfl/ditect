@@ -19,8 +19,6 @@ void DS_init_rand(long seed) {
 
 #define IDX(i, j, m) ((i) * (m) + (j))
 
-#define MAX_OUTPUT_LABEL_STRLEN 0xFF
-
 typedef struct {
   DS_FLOAT **activations;
   DS_FLOAT **inputs;
@@ -622,8 +620,10 @@ void DS_network_feedforward(DS_Network *const network,
   }
 }
 
-void DS_network_print_prediction(DS_Network *const network,
-                                 const DS_FLOAT *const input) {
+DS_FLOAT DS_network_predict(DS_Network *const network,
+                            const DS_FLOAT *const input,
+                            char prediction[MAX_OUTPUT_LABEL_STRLEN + 1]) {
+
   DS_network_feedforward(network, input);
   size_t prediction_index = 0;
   DS_FLOAT max_activation = 0.;
@@ -639,15 +639,22 @@ void DS_network_print_prediction(DS_Network *const network,
       prediction_index = i;
     }
   }
-  DS_PRINTF("Prediction for");
-  if (network->output_labels) {
-    DS_PRINTF(" label %s", network->output_labels[prediction_index]);
-  } else {
-    DS_PRINTF(" activation index %lu", prediction_index);
-  }
 
-  DS_PRINTF(" with probability of %.1f%%\n",
-            max_activation / sum_activation * 100);
+  if (network->output_labels)
+    strcpy(prediction, network->output_labels[prediction_index]);
+  else
+    snprintf(prediction, MAX_OUTPUT_LABEL_STRLEN, "%lu", prediction_index);
+
+  return max_activation / sum_activation;
+}
+
+void DS_network_print_prediction(DS_Network *const network,
+                                 const DS_FLOAT *const input) {
+
+  char prediction[MAX_OUTPUT_LABEL_STRLEN + 1] = {0};
+  DS_FLOAT probability = DS_network_predict(network, input, prediction);
+  DS_PRINTF("Prediction is %s with probability of %.1f%%\n", prediction,
+            probability);
 }
 
 DS_FLOAT DS_network_cost(DS_Network *const network,

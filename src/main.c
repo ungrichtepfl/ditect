@@ -18,11 +18,11 @@
 #define EPOCHS 30
 #define BATCH_SIZE 10
 #define LEARNING_RATE 3.
-#define SCALING 30
+#define SCALING 20
 #define WIN_HEIGHT (SCALING * PNG_WIDTH)
 #define WIN_WIDTH WIN_HEIGHT
 #define TARGET_FPS 30
-#define MIN_PIXEL_AFTER_RESIZE 4
+#define MIN_PIXEL_AFTER_RESIZE 2
 
 static_assert(NUM_INPUTS * SCALING * SCALING == WIN_HEIGHT * WIN_WIDTH,
               "Scaling is wrong");
@@ -108,6 +108,7 @@ void run_gui(void) {
   float thickness = MIN_PIXEL_AFTER_RESIZE * SCALING;
   Vector2 mouse_positions[MOUSE_POSITION_SIZE] = {0};
   size_t number_of_lines = 0;
+  bool predicted = false;
 
   while (!WindowShouldClose() && !IsKeyPressed(KEY_Q)) {
 
@@ -118,6 +119,10 @@ void run_gui(void) {
     }
 
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+      if (predicted) {
+        ClearBackground(BLACK);
+        predicted = false;
+      }
       const Vector2 current_position = GetMousePosition();
       number_of_lines++;
       if (number_of_lines > MOUSE_POSITION_SIZE) {
@@ -131,6 +136,39 @@ void run_gui(void) {
       DrawSplineBasis(mouse_positions, number_of_lines, thickness, WHITE);
     } else {
       number_of_lines = 0;
+    }
+    if (IsKeyPressed(KEY_P)) {
+      predicted = true;
+      char *to_predict_big_file_name = "to_predict_big.png";
+      char *to_predict_file_name = "to_predict.png";
+      TakeScreenshot(to_predict_big_file_name);
+      char cmd[256] = {0};
+      snprintf(cmd, 256, "convert -resize %dx%d %s %s", PNG_WIDTH, PNG_WIDTH,
+               to_predict_big_file_name, to_predict_file_name);
+      DS_ASSERT(system(cmd) == 0, "Could not generate PNG.");
+
+      DS_Network *network = DS_network_load(TRAINED_NETWORK_PATH);
+      DS_PNG_Input *png_input = DS_PNG_input_load_grey(to_predict_file_name);
+      DS_ASSERT(png_input, "Could not load png input for file \"%s\"",
+                to_predict_file_name);
+
+      DS_ASSERT(png_input->width * png_input->height ==
+                    DS_network_input_layer_size(network),
+                "PNG data size is not compatible with network input size.");
+
+      char prediction[MAX_OUTPUT_LABEL_STRLEN + 1] = {0};
+
+      DS_FLOAT prob = DS_network_predict(network, png_input->data, prediction);
+      char out_text[MAX_OUTPUT_LABEL_STRLEN + 256] = "It's a ";
+
+      strncat(out_text, prediction, MAX_OUTPUT_LABEL_STRLEN + 256);
+
+      DrawText(out_text, 190, 20, 50, WHITE);
+
+      DS_PRINTF("Predicted %s with %.1f percent.\n", prediction, prob * 100);
+
+      DS_PNG_input_free(png_input);
+      DS_network_free(network);
     }
     EndDrawing();
   }

@@ -30,6 +30,8 @@
 #define DS_FPRINTF fprintf
 #endif
 
+#define MAX_OUTPUT_LABEL_STRLEN 0xFF
+
 typedef struct DS_Network DS_Network;
 
 typedef struct DS_Backprop DS_Backprop;
@@ -100,6 +102,10 @@ DS_FLOAT DS_network_cost(DS_Network *const network,
                          const DS_Labelled_Inputs *const labelled_input);
 
 void DS_network_print_activation_layer(const DS_Network *const network);
+
+DS_FLOAT DS_network_predict(DS_Network *const network,
+                            const DS_FLOAT *const input,
+                            char prediction[MAX_OUTPUT_LABEL_STRLEN + 1]);
 
 void DS_network_print_prediction(DS_Network *const network,
                                  const DS_FLOAT *const input);
