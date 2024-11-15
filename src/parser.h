@@ -4,7 +4,9 @@
 typedef enum {
   CLA_TESTING,
   CLA_TRAINING,
+  CLA_PREDICT,
   CLA_GUI,
+
 } CommandLineAction;
 
 typedef struct {

@@ -101,6 +101,9 @@ DS_FLOAT DS_network_cost(DS_Network *const network,
 
 void DS_network_print_activation_layer(const DS_Network *const network);
 
+void DS_network_print_prediction(DS_Network *const network,
+                                 const DS_FLOAT *const input);
+
 size_t DS_network_input_layer_size(const DS_Network *const network);
 
 size_t DS_network_output_layer_size(const DS_Network *const network);

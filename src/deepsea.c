@@ -590,6 +590,12 @@ static inline void dot_add(const DS_FLOAT *const W, const DS_FLOAT *const x,
   }
 }
 
+static const DS_FLOAT *
+network_get_output_activations(const DS_Network *const network) {
+
+  return network->result->activations[network->num_layers - 1];
+}
+
 void DS_network_feedforward(DS_Network *const network,
                             const DS_FLOAT *const input) {
   DS_ASSERT(memcpy(network->result->inputs[0], input,
@@ -614,6 +620,34 @@ void DS_network_feedforward(DS_Network *const network,
     sigmoid(network->result->activations[l + 1],
             network->result->activations[l + 1], n); // Inplace
   }
+}
+
+void DS_network_print_prediction(DS_Network *const network,
+                                 const DS_FLOAT *const input) {
+  DS_network_feedforward(network, input);
+  size_t prediction_index = 0;
+  DS_FLOAT max_activation = 0.;
+  DS_FLOAT sum_activation = 0.;
+
+  const size_t L = DS_network_output_layer_size(network);
+  const DS_FLOAT *output_activations = network_get_output_activations(network);
+
+  for (size_t i = 0; i < L; ++i) {
+    sum_activation += output_activations[i];
+    if (output_activations[i] > max_activation) {
+      max_activation = output_activations[i];
+      prediction_index = i;
+    }
+  }
+  DS_PRINTF("Prediction for");
+  if (network->output_labels) {
+    DS_PRINTF(" label %s", network->output_labels[prediction_index]);
+  } else {
+    DS_PRINTF(" activation index %lu", prediction_index);
+  }
+
+  DS_PRINTF(" with probability of %.1f%%\n",
+            max_activation / sum_activation * 100);
 }
 
 DS_FLOAT DS_network_cost(DS_Network *const network,
