@@ -2,6 +2,7 @@
 #define DEEPSEE_FILE_H
 
 #include <stddef.h>
+#include "deepsea.h"
 
 #define DS_FILE_MAX_PATH_LENGTH 1024
 
@@ -12,7 +13,11 @@ typedef struct {
 
 size_t DS_FILE_get_label_from_directory_name(const char *const file_path);
 
-DS_FILE_FileList* DS_FILE_get_files(const char *const dir_path);
+void DS_FILE_file_label_to_deepsea_label(size_t file_label,
+                                         DS_FLOAT *deepsea_label,
+                                         const size_t num_outputs);
+
+DS_FILE_FileList *DS_FILE_get_files(const char *const dir_path);
 
 void DS_FILE_file_list_free(DS_FILE_FileList *const file_list);
 

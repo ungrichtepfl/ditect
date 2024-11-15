@@ -40,6 +40,8 @@ typedef struct {
   size_t count;
 } DS_Labelled_Inputs;
 
+void DS_labelled_inputs_free(DS_Labelled_Inputs *inputs);
+
 /// Initialize the random number generator with a seed.
 /// If a negative seed is given, the current time is used as the seed.
 void DS_init_rand(long seed);
@@ -68,7 +70,6 @@ void DS_randno(DS_FLOAT *const values, const size_t n);
 
 bool DS_network_save(const DS_Network *const network,
                      const char *const file_path);
-
 
 DS_Network *DS_network_load(const char *const file_path);
 
@@ -99,6 +100,10 @@ DS_FLOAT DS_network_cost(DS_Network *const network,
                          const DS_Labelled_Inputs *const labelled_input);
 
 void DS_network_print_activation_layer(const DS_Network *const network);
+
+size_t DS_network_input_layer_size(const DS_Network *const network);
+
+size_t DS_network_output_layer_size(const DS_Network *const network);
 
 DS_Backprop *DS_brackprop_create(const size_t *const sizes,
                                  const size_t num_layers,

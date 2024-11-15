@@ -1,6 +1,8 @@
 #include "deepsea_png.h"
 
 #include <assert.h>
+#include <errno.h>
+#include <math.h>
 #include <png.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -44,6 +46,82 @@ DS_PNG_Input *DS_PNG_input_load_grey(const char *const png_image_path) {
   png_input->type = DS_PNG_Gray;
 
   return png_input;
+}
+
+DS_Labelled_Inputs *
+DS_PNG_file_list_to_labelled_inputs(const DS_FILE_FileList *const png_file_list,
+                                    const DS_Network *const network) {
+
+  const size_t input_length = DS_network_input_layer_size(network);
+  const size_t output_length = DS_network_output_layer_size(network);
+  const size_t max_label = (size_t)powl(2, output_length) - 1;
+
+  DS_Labelled_Inputs *labelled_input = DS_MALLOC(sizeof(*labelled_input));
+  DS_ASSERT(labelled_input, "Could not create file list. Out of memory.");
+
+  labelled_input->inputs =
+      DS_MALLOC(png_file_list->count * sizeof(labelled_input->inputs));
+  DS_ASSERT(labelled_input->inputs,
+            "Could not create file list. Out of memory.");
+  labelled_input->labels =
+      DS_MALLOC(png_file_list->count * sizeof(labelled_input->labels));
+  DS_ASSERT(labelled_input->labels,
+            "Could not create file list. Out of memory.");
+  for (size_t i = 0; i < png_file_list->count; ++i) {
+    // NOTE: Do not malloc for inputs this will be moved from PNG!
+
+    labelled_input->labels[i] =
+        DS_MALLOC(output_length * sizeof(labelled_input->labels[0]));
+    DS_ASSERT(labelled_input->labels[i],
+              "Could not create file list. Out of memory.");
+  }
+  DS_PNG_Input *png_input = NULL;
+  for (size_t i = 0; i < png_file_list->count; ++i) {
+    const char *const png_file_path = png_file_list->paths[i];
+    errno = 0;
+    size_t label = DS_FILE_get_label_from_directory_name(png_file_path);
+    if (label == 0 && errno != 0) {
+      DS_ERROR("Could not get output label for file \"%s\"", png_file_path);
+      goto file_list_to_labelled_inputs_error;
+    }
+    if (label > max_label) {
+      DS_ERROR("Label of PNG \"s\" is bigger than maximum label representable "
+               "by the number of outputs: %lu",
+               max_label);
+      goto file_list_to_labelled_inputs_error;
+    }
+
+    png_input = DS_PNG_input_load_grey(png_file_path);
+    if (!png_input) {
+      DS_ERROR("Could not load PNG \"%s\"", png_file_path);
+      goto file_list_to_labelled_inputs_error;
+    }
+    if (png_input->width * png_input->height != input_length) {
+      DS_ERROR("PNG data length does not fit network input size, must be %lu "
+               "but got %lu",
+               input_length, png_input->width * png_input->height);
+      goto file_list_to_labelled_inputs_error;
+    }
+
+    labelled_input->inputs[i] = png_input->data;
+    png_input->data = NULL; // Move the data
+    DS_FILE_file_label_to_deepsea_label(label, labelled_input->labels[i],
+                                        output_length);
+    DS_PNG_input_free(png_input);
+  }
+  labelled_input->count = png_file_list->count;
+  return labelled_input;
+
+file_list_to_labelled_inputs_error:
+  DS_FREE(png_input);
+  for (size_t i = 0; i < png_file_list->count; ++i) {
+    // NOTE: Inputs are only set when there are no errors anymore
+    DS_FREE(labelled_input->labels[i]);
+  }
+  DS_FREE(labelled_input->inputs);
+  DS_FREE(labelled_input->labels);
+  DS_FREE(labelled_input);
+  return NULL;
 }
 
 void DS_PNG_input_print(const DS_PNG_Input *const png_input) {

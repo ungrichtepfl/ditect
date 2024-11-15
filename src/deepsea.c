@@ -102,7 +102,7 @@ bool DS_network_save(const DS_Network *const network,
     fprintf(f, "\n");
   }
   if (network->output_labels) {
-    const size_t L = network->layer_sizes[network->num_layers - 1];
+    const size_t L = DS_network_output_layer_size(network);
     for (size_t i = 0; i < L; ++i)
       fprintf(f, "%s" SERIAL_SEP, network->output_labels[i]);
     fprintf(f, "\n");
@@ -497,7 +497,7 @@ void DS_network_free(DS_Network *const network) {
   network_result_free(network->result, network->num_layers);
 
   if (network->output_labels) {
-    const size_t L = network->layer_sizes[network->num_layers - 1];
+    const size_t L = DS_network_output_layer_size(network);
     for (size_t i = 0; i < L; ++i)
       DS_FREE(network->output_labels[i]);
     DS_FREE(network->output_labels);
@@ -519,7 +519,7 @@ void DS_network_print(const DS_Network *const network) {
   DS_PRINTF("Network:\n");
   if (network->output_labels) {
     DS_PRINTF("Output labels: [ ");
-    const size_t L = network->layer_sizes[network->num_layers - 1];
+    const size_t L = DS_network_output_layer_size(network);
     for (size_t i = 0; i < L; ++i)
       DS_PRINTF("%s ", network->output_labels[i]);
     DS_PRINTF("]\n");
@@ -641,6 +641,14 @@ void DS_network_print_activation_layer(const DS_Network *const network) {
   DS_PRINTF("---------------------------------------------------\n");
 }
 
+size_t DS_network_input_layer_size(const DS_Network *const network) {
+  return network->layer_sizes[0];
+}
+
+size_t DS_network_output_layer_size(const DS_Network *const network) {
+  return network->layer_sizes[network->num_layers - 1];
+}
+
 struct DS_Backprop {
   DS_FLOAT **errors;
   DS_FLOAT **weight_error_sums;
@@ -649,6 +657,18 @@ struct DS_Backprop {
 };
 
 typedef struct DS_Backprop DS_Backprop;
+
+void DS_labelled_inputs_free(DS_Labelled_Inputs *inputs) {
+  for (size_t i = 0; i < inputs->count; ++i) {
+    DS_FREE(inputs->inputs[i]);
+    DS_FREE(inputs->labels[i]);
+  }
+
+  DS_FREE(inputs->inputs);
+  DS_FREE(inputs->labels);
+
+  DS_FREE(inputs);
+}
 
 DS_Backprop *DS_brackprop_create_from_network(DS_Network *const network) {
 

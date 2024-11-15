@@ -1,5 +1,4 @@
 #include "deepsea_file.h"
-#include "deepsea.h"
 #include <dirent.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -119,9 +118,12 @@ size_t DS_FILE_get_label_from_directory_name(const char *const file_path) {
   strcpy(dir_path, file_path); // Duplicate file path to safely manipulate it
 
   char *last_slash = strrchr(dir_path, '/');
-
-  DS_ASSERT(last_slash, "Could not get label for \"%s\" wrong format.",
-            file_path);
+  if (!last_slash) {
+    DS_ERROR("Could not get label for \"%s\" wrong format.", file_path);
+    errno = 1;
+    DS_FREE(dir_path);
+    return 0;
+  }
   *last_slash = '\0'; // Null-terminate to get the directory part
 
   // Get the name of the parent directory
@@ -133,13 +135,23 @@ size_t DS_FILE_get_label_from_directory_name(const char *const file_path) {
   }
 
   // Convert the parent directory name to size_t
+  errno = 0;
   size_t label = (size_t)strtoul(parent_dir, NULL, 10); // Convert to size_t
+  if (label == 0 && errno != 0) {
+    DS_ERROR("Could not parse directory \"%s\". Basename of file directory "
+             "must be number but got: %s. Error: %s",
+             file_path, parent_dir, strerror(errno));
+    errno = 2;
+    DS_FREE(dir_path);
+    return 0;
+  }
   DS_FREE(dir_path);
   return label;
 }
 
-void file_label_to_deepsea_label(size_t file_label, DS_FLOAT *deepsea_label,
-                                 const size_t num_outputs) {
+void DS_FILE_file_label_to_deepsea_label(size_t file_label,
+                                         DS_FLOAT *deepsea_label,
+                                         const size_t num_outputs) {
   for (size_t i = 0; i < num_outputs; i++) {
     // Set the current bit in the array (0 or 1)
     deepsea_label[i] = (DS_FLOAT)(file_label & 1);

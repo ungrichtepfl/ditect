@@ -2,6 +2,7 @@
 #define LOAD_PNG_H
 
 #include "deepsea.h"
+#include "deepsea_file.h"
 
 typedef enum {
   DS_PNG_Gray,
@@ -15,6 +16,10 @@ typedef struct {
 } DS_PNG_Input;
 
 DS_PNG_Input *DS_PNG_input_load_grey(const char *const image_path);
+
+DS_Labelled_Inputs *
+DS_PNG_file_list_to_labelled_inputs(const DS_FILE_FileList *const png_file_list,
+                                    const DS_Network *const network);
 
 void DS_PNG_input_print(const DS_PNG_Input *const png_input);
 
