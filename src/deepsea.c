@@ -565,13 +565,21 @@ static inline DS_FLOAT sigmoid_prime_s(const DS_FLOAT z) {
   return e / ((1 + e) * (1 + e));
 }
 
-static inline DS_FLOAT distance_squared(const DS_FLOAT *const x,
-                                        const DS_FLOAT *const y,
-                                        const size_t n) {
+static DS_FLOAT quadratic_cost(const DS_FLOAT *const a, const DS_FLOAT *const y,
+                               const size_t n) {
+  DS_FLOAT cost = 0;
+  for (size_t i = 0; i < n; ++i) {
+    DS_FLOAT diff = (a[i] - y[i]);
+    cost += diff * diff;
+  }
+  return 0.5f * cost;
+}
+
+static DS_FLOAT cross_entropy_cost(const DS_FLOAT *const a,
+                                   const DS_FLOAT *const y, const size_t n) {
   DS_FLOAT out = 0;
   for (size_t i = 0; i < n; ++i) {
-    DS_FLOAT diff = (x[i] - y[i]);
-    out += diff * diff;
+    out += y[i] * logf(a[i]) + (1 - y[i]) * logf(1 - a[i]);
   }
   return out;
 }
@@ -657,20 +665,6 @@ void DS_network_print_prediction(DS_Network *const network,
             probability);
 }
 
-DS_FLOAT DS_network_cost(DS_Network *const network,
-                         const DS_Labelled_Inputs *const labelled_input) {
-  DS_FLOAT cost = 0;
-  size_t len_output = network->layer_sizes[network->num_layers - 1];
-  for (size_t p = 0; p < labelled_input->count; ++p) {
-    const DS_FLOAT *x = labelled_input->inputs[p];
-    const DS_FLOAT *y = labelled_input->labels[p];
-    DS_network_feedforward(network, x);
-    cost += distance_squared(
-        network->result->activations[network->num_layers - 1], y, len_output);
-  }
-  return 1. / (2. * (DS_FLOAT)labelled_input->count) * cost;
-}
-
 void DS_network_print_activation_layer(const DS_Network *const network) {
   DS_PRINTF("---------------- OUTPUT PER NEURON ----------------\n");
   for (size_t i = 0; i < network->layer_sizes[network->num_layers - 1]; ++i) {
@@ -692,6 +686,11 @@ struct DS_Backprop {
   DS_FLOAT **errors;
   DS_FLOAT **weight_error_sums;
   DS_FLOAT **bias_error_sums;
+  // NOTE: This functions only compues the cost for a single input (not
+  // normalized by the number of inputs yet)
+  DS_FLOAT (*cost_function)(const DS_FLOAT *const a, const DS_FLOAT *const y,
+                            const size_t n);
+  DS_FLOAT regularization_param;
   DS_Network *network;
 };
 
@@ -709,7 +708,10 @@ void DS_labelled_inputs_free(DS_Labelled_Inputs *inputs) {
   DS_FREE(inputs);
 }
 
-DS_Backprop *DS_brackprop_create_from_network(DS_Network *const network) {
+DS_Backprop *
+DS_backprop_create_from_network(DS_Network *const network,
+                                const DS_CostFunctionType cost_function_type,
+                                const DS_FLOAT regularization_param) {
 
   DS_Backprop *backprop = DS_MALLOC(sizeof(*backprop));
   DS_ASSERT(backprop, "Could not create backprop. Out of memory.");
@@ -741,16 +743,32 @@ DS_Backprop *DS_brackprop_create_from_network(DS_Network *const network) {
     DS_ASSERT(backprop->weight_error_sums[l],
               "Could not create backprop. Out of memory.");
   }
+  switch (cost_function_type) {
+  case DS_QUADRATIC: {
+    backprop->cost_function = &quadratic_cost;
+  } break;
+
+  case DS_CROSS_ENTROPY: {
+    backprop->cost_function = &cross_entropy_cost;
+  } break;
+  default: {
+    DS_ASSERT(true, "Unreachable");
+  } break;
+  }
+  backprop->regularization_param = regularization_param;
   backprop->network = network;
   return backprop;
 }
 
-DS_Backprop *DS_brackprop_create(const size_t *const sizes,
-                                 const size_t num_layers,
-                                 char *const *const output_labels) {
+DS_Backprop *DS_backprop_create(const size_t *const sizes,
+                                const size_t num_layers,
+                                char *const *const output_labels,
+                                const DS_CostFunctionType cost_function_type,
+                                const DS_FLOAT regularization_param) {
   DS_Network *network =
       DS_network_create_random(sizes, num_layers, output_labels);
-  return DS_brackprop_create_from_network(network);
+  return DS_backprop_create_from_network(network, cost_function_type,
+                                         regularization_param);
 }
 
 void DS_backprop_free(DS_Backprop *const backprop) {
@@ -766,6 +784,24 @@ void DS_backprop_free(DS_Backprop *const backprop) {
   DS_FREE(backprop->weight_error_sums);
   DS_network_free(backprop->network);
   DS_FREE(backprop);
+}
+
+DS_FLOAT
+DS_backprop_network_cost(DS_Backprop *const backprop,
+                         const DS_Labelled_Inputs *const labelled_input) {
+  DS_FLOAT cost = 0;
+  size_t len_output =
+      backprop->network->layer_sizes[backprop->network->num_layers - 1];
+  for (size_t p = 0; p < labelled_input->count; ++p) {
+    const DS_FLOAT *x = labelled_input->inputs[p];
+    const DS_FLOAT *y = labelled_input->labels[p];
+    DS_network_feedforward(backprop->network, x);
+    cost += backprop->cost_function(
+        backprop->network->result
+            ->activations[backprop->network->num_layers - 1],
+        y, len_output);
+  }
+  return 1.f / (DS_FLOAT)labelled_input->count * cost;
 }
 
 static inline DS_FLOAT last_output_error_s(const DS_FLOAT a, const DS_FLOAT z,
@@ -862,12 +898,6 @@ void DS_backprop_learn_once(DS_Backprop *const backprop,
 
   const DS_FLOAT rate = learing_rate / (DS_FLOAT)labelled_input->count;
   update_weights_and_biases(backprop, rate);
-}
-
-DS_FLOAT
-DS_backprop_network_cost(DS_Backprop *const backprop,
-                         const DS_Labelled_Inputs *const labelled_input) {
-  return DS_network_cost(backprop->network, labelled_input);
 }
 
 DS_Network const *DS_backprop_network(const DS_Backprop *const backprop) {

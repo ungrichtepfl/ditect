@@ -97,16 +97,16 @@ void test_sigmoid_prime_single(void) {
                  "Single sigmoid_prime negative");
 }
 
-void test_distance_squared_zero(void) {
+void test_quadratic_cost_zero(void) {
   DS_FLOAT x[3] = {1., 2., 3.};
   DS_FLOAT y[3] = {1., 2., 3.};
-  SEE_assert_eqf(distance_squared(&x[0], &y[0], 3), 0., "Zero distance");
+  SEE_assert_eqf(quadratic_cost(&x[0], &y[0], 3), 0., "Zero distance");
 }
 
-void test_distance_squared(void) {
+void test_quadratic_cost(void) {
   DS_FLOAT x[3] = {1., 2., -3.};
   DS_FLOAT y[3] = {-3., 1., 2.};
-  SEE_assert_eqf(distance_squared(&x[0], &y[0], 3), 42., "Zero distance");
+  SEE_assert_eqf(quadratic_cost(&x[0], &y[0], 3), 21., "Zero distance");
 }
 
 void check_random_network(const DS_Network *const network,
@@ -407,11 +407,13 @@ void check_backprop_segfauls(const DS_Backprop *const backprop) {
   }
 }
 
+// TODO: Create tests for all different cost functions.
 void test_backprop_create(void) {
   size_t num_layers = 4;
   size_t sizes[4] = {2, 5, 3};
   char **labels = NULL;
-  DS_Backprop *backprop = DS_brackprop_create(sizes, num_layers, labels);
+  DS_Backprop *backprop =
+      DS_backprop_create(sizes, num_layers, labels, DS_QUADRATIC, 0.f);
   check_backprop_segfauls(backprop);
   check_random_network(DS_backprop_network(backprop), num_layers, sizes,
                        labels);
@@ -420,7 +422,7 @@ void test_backprop_create(void) {
 
 void test_backprop_create_from_network(void) {
   DS_Backprop *backprop =
-      DS_brackprop_create_from_network(create_test_network());
+      DS_backprop_create_from_network(create_test_network(), DS_QUADRATIC, 0.f);
   check_backprop_segfauls(backprop);
   check_network_correctness(DS_backprop_network(backprop));
   DS_backprop_free(backprop);
@@ -428,7 +430,7 @@ void test_backprop_create_from_network(void) {
 
 void test_network_backprop_error_sums_single_input(void) {
   DS_Backprop *backprop =
-      DS_brackprop_create_from_network(create_test_network());
+      DS_backprop_create_from_network(create_test_network(), DS_QUADRATIC, 0.f);
   DS_FLOAT learning_rate = 1;
   size_t num_training = 1;
   DS_FLOAT x[LAYER_1] = {0.2, 0.1};
@@ -470,7 +472,7 @@ void test_network_backprop_error_sums_single_input(void) {
 
 void test_network_backprop_double_input(void) {
   DS_Backprop *backprop =
-      DS_brackprop_create_from_network(create_test_network());
+      DS_backprop_create_from_network(create_test_network(), DS_QUADRATIC, 0.f);
   DS_FLOAT learning_rate = 0.8;
   size_t num_training = 2;
 
@@ -514,7 +516,7 @@ void test_network_backprop_double_input(void) {
 
 void test_network_backprop_double_input_twice(void) {
   DS_Backprop *backprop =
-      DS_brackprop_create_from_network(create_test_network());
+      DS_backprop_create_from_network(create_test_network(), DS_QUADRATIC, 0.f);
   DS_FLOAT learning_rate = 0.8;
   size_t num_training = 2;
 
@@ -560,7 +562,7 @@ void test_network_backprop_double_input_twice(void) {
 SEE_RUN_TESTS(test_sigmoid_single, test_sigmoid_multi,
               test_sigmoid_prime_single, test_dot_add_identity,
               test_dot_add_sum, test_dot_add_permutation, test_idx,
-              test_distance_squared_zero, test_distance_squared,
+              test_quadratic_cost_zero, test_quadratic_cost,
               test_dot_add_non_symmetric, test_network_creation_random,
               test_create_test_network, test_network_eq,
               test_create_test_network_owned, test_check_two_files,

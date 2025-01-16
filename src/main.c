@@ -15,6 +15,8 @@
 #define PNG_WIDTH 28
 #define NUM_INPUTS (PNG_WIDTH * PNG_WIDTH)
 #define NUM_OUTPUTS 10
+#define COST_FUNCTION DS_QUADRATIC
+#define REGULARIZATION_PARAM 5.f
 #define EPOCHS 30
 #define BATCH_SIZE 10
 #define LEARNING_RATE 3.
@@ -36,7 +38,8 @@ void train(const char *const data_path) {
   char *output_labels[NUM_OUTPUTS] = {"0", "1", "2", "3", "4",
                                       "5", "6", "7", "8", "9"};
   DS_Backprop *backprop =
-      DS_brackprop_create(layer_sizes, NUM_LAYERS, output_labels);
+      DS_backprop_create(layer_sizes, NUM_LAYERS, output_labels, COST_FUNCTION,
+                         REGULARIZATION_PARAM);
 
   DS_FILE_FileList *data_file_paths = DS_FILE_get_files(data_path);
   DS_ASSERT(data_file_paths->count > 0, "No files found.");
@@ -72,8 +75,11 @@ void test(const char *const data_path) {
       DS_PNG_file_list_to_labelled_inputs(data_file_paths, network);
   DS_ASSERT(labelled_inputs, "Could not labelled inputs.");
 
-  DS_FLOAT cost = DS_network_cost(network, labelled_inputs);
-  DS_PRINTF("Cost of network for testing set: %.2f\n", cost);
+  DS_Backprop *backprop = DS_backprop_create_from_network(
+      network, COST_FUNCTION, REGULARIZATION_PARAM);
+
+  DS_FLOAT cost = DS_backprop_network_cost(backprop, labelled_inputs);
+  DS_PRINTF("Quadratic cost of network for testing set: %.2f\n", cost);
   DS_labelled_inputs_free(labelled_inputs);
   DS_FILE_file_list_free(data_file_paths);
   DS_network_free(network);
@@ -161,7 +167,7 @@ void run_gui(void) {
       DS_FLOAT prob = DS_network_predict(network, png_input->data, prediction);
       char out_text[MAX_OUTPUT_LABEL_STRLEN + 256] = "It's a ";
 
-      strncat(out_text, prediction, MAX_OUTPUT_LABEL_STRLEN + 256);
+      strncat(out_text, prediction, MAX_OUTPUT_LABEL_STRLEN + 255);
 
       DrawText(out_text, 190, 20, 50, WHITE);
 

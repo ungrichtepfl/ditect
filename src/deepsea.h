@@ -98,9 +98,6 @@ void DS_network_print(const DS_Network *const network);
 void DS_network_feedforward(DS_Network *const network,
                             const DS_FLOAT *const input);
 
-DS_FLOAT DS_network_cost(DS_Network *const network,
-                         const DS_Labelled_Inputs *const labelled_input);
-
 void DS_network_print_activation_layer(const DS_Network *const network);
 
 DS_FLOAT DS_network_predict(DS_Network *const network,
@@ -114,11 +111,18 @@ size_t DS_network_input_layer_size(const DS_Network *const network);
 
 size_t DS_network_output_layer_size(const DS_Network *const network);
 
-DS_Backprop *DS_brackprop_create(const size_t *const sizes,
-                                 const size_t num_layers,
-                                 char *const *const output_labels);
+typedef enum { DS_QUADRATIC, DS_CROSS_ENTROPY } DS_CostFunctionType;
 
-DS_Backprop *DS_brackprop_create_from_network(DS_Network *const network);
+DS_Backprop *DS_backprop_create(const size_t *const sizes,
+                                const size_t num_layers,
+                                char *const *const output_labels,
+                                const DS_CostFunctionType cost_function_type,
+                                const DS_FLOAT regularization_param);
+
+DS_Backprop *
+DS_backprop_create_from_network(DS_Network *const network,
+                                const DS_CostFunctionType cost_function_type,
+                                const DS_FLOAT regularization_param);
 
 void DS_backprop_free(DS_Backprop *const backprop);
 
