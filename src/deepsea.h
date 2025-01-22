@@ -128,7 +128,8 @@ void DS_backprop_free(DS_Backprop *const backprop);
 
 void DS_backprop_learn_once(DS_Backprop *const backprop,
                             const DS_Labelled_Inputs *const labelled_input,
-                            const DS_FLOAT learing_rate);
+                            const DS_FLOAT learing_rate,
+                            const size_t total_training_set_size);
 
 DS_Network const *DS_backprop_network(const DS_Backprop *const backprop);
 

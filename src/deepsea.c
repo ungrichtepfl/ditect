@@ -434,6 +434,16 @@ DS_Network *DS_network_create_random(const size_t *const sizes,
   for (size_t l = 0; l < num_layers - 1; ++l) {
     biases[l] = DS_randn(layer_sizes[l + 1]);
     weights[l] = DS_randn(layer_sizes[l] * layer_sizes[l + 1]);
+    const size_t n = sizes[l];
+    const size_t m = sizes[l + 1];
+    const DS_FLOAT normalizer =
+        1.f / sqrtf(n); // NOTE: Normalize weights by the number of other
+                        // weights connected to the same neuron
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < m; ++j) {
+        weights[l][IDX(i, j, m)] = weights[l][IDX(i, j, m)] * normalizer;
+      }
+    }
   }
   return DS_network_create_owned(
       weights, biases, layer_sizes, num_layers,
@@ -579,9 +589,23 @@ static DS_FLOAT cross_entropy_cost(const DS_FLOAT *const a,
                                    const DS_FLOAT *const y, const size_t n) {
   DS_FLOAT out = 0;
   for (size_t i = 0; i < n; ++i) {
-    out += y[i] * logf(a[i]) + (1 - y[i]) * logf(1 - a[i]);
+    DS_FLOAT tmp = y[i] * logf(a[i]) + (1 - y[i]) * logf(1 - a[i]);
+    if (!isnanf(tmp))
+      out += tmp;
   }
-  return out;
+  return -out;
+}
+
+static DS_FLOAT l2_regularization_cost(const DS_FLOAT *const W, const size_t n,
+                                       const size_t m) {
+  DS_FLOAT cost = 0;
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < m; ++j) {
+      const DS_FLOAT tmp = W[IDX(i, j, m)];
+      cost += tmp * tmp;
+    }
+  }
+  return 0.5f * cost;
 }
 
 static inline void dot_add(const DS_FLOAT *const W, const DS_FLOAT *const x,
@@ -690,6 +714,8 @@ struct DS_Backprop {
   // normalized by the number of inputs yet)
   DS_FLOAT (*cost_function)(const DS_FLOAT *const a, const DS_FLOAT *const y,
                             const size_t n);
+  DS_FLOAT (*last_output_error)(const DS_FLOAT a, const DS_FLOAT z,
+                                const DS_FLOAT y);
   DS_FLOAT regularization_param;
   DS_Network *network;
 };
@@ -706,6 +732,18 @@ void DS_labelled_inputs_free(DS_Labelled_Inputs *inputs) {
   DS_FREE(inputs->labels);
 
   DS_FREE(inputs);
+}
+
+static DS_FLOAT last_output_error_quadratic(const DS_FLOAT a, const DS_FLOAT z,
+                                            const DS_FLOAT y) {
+  return (a - y) * sigmoid_prime_s(z);
+}
+
+static DS_FLOAT last_output_error_cross_entropy(const DS_FLOAT a,
+                                                const DS_FLOAT z,
+                                                const DS_FLOAT y) {
+  (void)z; // NOTE: Unused but needed for the interface
+  return (a - y);
 }
 
 DS_Backprop *
@@ -746,10 +784,12 @@ DS_backprop_create_from_network(DS_Network *const network,
   switch (cost_function_type) {
   case DS_QUADRATIC: {
     backprop->cost_function = &quadratic_cost;
+    backprop->last_output_error = &last_output_error_quadratic;
   } break;
 
   case DS_CROSS_ENTROPY: {
     backprop->cost_function = &cross_entropy_cost;
+    backprop->last_output_error = &last_output_error_cross_entropy;
   } break;
   default: {
     DS_ASSERT(true, "Unreachable");
@@ -801,12 +841,16 @@ DS_backprop_network_cost(DS_Backprop *const backprop,
             ->activations[backprop->network->num_layers - 1],
         y, len_output);
   }
-  return 1.f / (DS_FLOAT)labelled_input->count * cost;
-}
-
-static inline DS_FLOAT last_output_error_s(const DS_FLOAT a, const DS_FLOAT z,
-                                           const DS_FLOAT y) {
-  return (a - y) * sigmoid_prime_s(z);
+  DS_FLOAT regularization_cost = 0;
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    const size_t n = backprop->network->layer_sizes[l + 1];
+    const size_t m = backprop->network->layer_sizes[l];
+    const DS_FLOAT *const W = backprop->network->weights[l];
+    regularization_cost +=
+        l2_regularization_cost(W, n, m); // TODO: Let user choose type
+  }
+  return 1.f / (DS_FLOAT)labelled_input->count *
+         (cost + backprop->regularization_param * regularization_cost);
 }
 
 static void calculate_output_error(DS_Backprop *const backprop,
@@ -814,9 +858,9 @@ static void calculate_output_error(DS_Backprop *const backprop,
   const size_t L = backprop->network->num_layers - 1;
   size_t n = backprop->network->layer_sizes[L];
   for (size_t i = 0; i < n; ++i) {
-    backprop->errors[L][i] =
-        last_output_error_s(backprop->network->result->activations[L][i],
-                            backprop->network->result->inputs[L][i], y[i]);
+    backprop->errors[L][i] = backprop->last_output_error(
+        backprop->network->result->activations[L][i],
+        backprop->network->result->inputs[L][i], y[i]);
   }
 
   for (long long l = L - 1; l >= 0; --l) {
@@ -872,7 +916,9 @@ calculate_error_sums(DS_Backprop *const backprop,
 }
 
 static void update_weights_and_biases(DS_Backprop *const backprop,
-                                      const DS_FLOAT rate) {
+                                      const DS_FLOAT learning_rate,
+                                      const size_t batch_size,
+                                      const size_t total_training_set_size) {
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     const size_t n = backprop->network->layer_sizes[l + 1];
     const size_t m = backprop->network->layer_sizes[l];
@@ -883,21 +929,26 @@ static void update_weights_and_biases(DS_Backprop *const backprop,
 
     for (size_t i = 0; i < n; ++i) {
       for (size_t j = 0; j < m; ++j) {
-        W[IDX(i, j, m)] -= rate * weight_update[IDX(i, j, m)];
+        W[IDX(i, j, m)] =
+            (1.f - learning_rate * backprop->regularization_param /
+                       (DS_FLOAT)total_training_set_size) *
+                W[IDX(i, j, m)] -
+            learning_rate / (DS_FLOAT)batch_size * weight_update[IDX(i, j, m)];
       }
-      b[i] -= rate * bias_update[i];
+      b[i] -= learning_rate / (DS_FLOAT)batch_size * bias_update[i];
     }
   }
 }
 
 void DS_backprop_learn_once(DS_Backprop *const backprop,
                             const DS_Labelled_Inputs *const labelled_input,
-                            const DS_FLOAT learing_rate) {
+                            const DS_FLOAT learing_rate,
+                            const size_t total_training_set_size) {
 
   calculate_error_sums(backprop, labelled_input);
 
-  const DS_FLOAT rate = learing_rate / (DS_FLOAT)labelled_input->count;
-  update_weights_and_biases(backprop, rate);
+  update_weights_and_biases(backprop, learing_rate, labelled_input->count,
+                            total_training_set_size);
 }
 
 DS_Network const *DS_backprop_network(const DS_Backprop *const backprop) {

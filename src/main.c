@@ -15,11 +15,11 @@
 #define PNG_WIDTH 28
 #define NUM_INPUTS (PNG_WIDTH * PNG_WIDTH)
 #define NUM_OUTPUTS 10
-#define COST_FUNCTION DS_QUADRATIC
-#define REGULARIZATION_PARAM 5.f
+#define COST_FUNCTION DS_CROSS_ENTROPY
+#define REGULARIZATION_PARAM 5.0f
 #define EPOCHS 30
 #define BATCH_SIZE 10
-#define LEARNING_RATE 3.
+#define LEARNING_RATE 0.5f
 #define SCALING 20
 #define WIN_HEIGHT (SCALING * PNG_WIDTH)
 #define WIN_WIDTH WIN_HEIGHT
@@ -51,7 +51,8 @@ void train(const char *const data_path) {
           random_slice, DS_backprop_network(backprop));
       DS_ASSERT(labelled_inputs, "Could not labelled inputs.");
 
-      DS_backprop_learn_once(backprop, labelled_inputs, LEARNING_RATE);
+      DS_backprop_learn_once(backprop, labelled_inputs, LEARNING_RATE,
+                             data_file_paths->count);
       DS_FLOAT cost = DS_backprop_network_cost(backprop, labelled_inputs);
       DS_PRINTF("Cost of network AFTER learing: %.2f\n", cost);
       DS_labelled_inputs_free(labelled_inputs);

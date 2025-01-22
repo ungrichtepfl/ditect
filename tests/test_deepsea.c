@@ -368,18 +368,18 @@ void test_network_backprop_last_error(void) {
   DS_FLOAT a = 0.3;
   DS_FLOAT z = 0.5;
   DS_FLOAT y = 0.3;
-  SEE_assert_eqf(last_output_error_s(a, z, y), 0.,
+  SEE_assert_eqf(last_output_error_quadratic(a, z, y), 0.,
                  "Last output error: No error.");
 
   a = 0.8;
   z = 0.3;
   y = 0.1;
-  SEE_assert_eqf(last_output_error_s(a, z, y), 0.17112081818352212,
+  SEE_assert_eqf(last_output_error_quadratic(a, z, y), 0.17112081818352212,
                  "Last output error: Positive error.");
   a = 0.7;
   z = 0.8;
   y = 0.9;
-  SEE_assert_eqf(last_output_error_s(a, z, y), -0.042781939304058894,
+  SEE_assert_eqf(last_output_error_quadratic(a, z, y), -0.042781939304058894,
                  "Last output error: Negative error.");
 }
 
@@ -451,7 +451,7 @@ void test_network_backprop_error_sums_single_input(void) {
   DS_FLOAT *error_weights[NUM_LAYERS - 1] = {&error_weight_1[0],
                                              &error_weight_2[0]};
 
-  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate, labelled_inputs.count);
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     size_t n = backprop->network->layer_sizes[l + 1];
@@ -495,7 +495,7 @@ void test_network_backprop_double_input(void) {
   DS_Labelled_Inputs labelled_inputs = {
       .inputs = xs, .labels = ys, .count = num_training};
 
-  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate, labelled_inputs.count);
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     size_t n = backprop->network->layer_sizes[l + 1];
@@ -539,8 +539,8 @@ void test_network_backprop_double_input_twice(void) {
   DS_FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
   DS_FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
 
-  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate);
-  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate, labelled_inputs.count);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate, labelled_inputs.count);
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     size_t n = backprop->network->layer_sizes[l + 1];
