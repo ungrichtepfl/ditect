@@ -584,6 +584,18 @@ static DS_FLOAT cross_entropy_cost(const DS_FLOAT *const a,
   return out;
 }
 
+static DS_FLOAT l2_regularization_cost(const DS_FLOAT *const w, const size_t n,
+                                       const size_t m) {
+  DS_FLOAT cost = 0;
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < m; ++j) {
+      const DS_FLOAT tmp = w[IDX(i, j, m)];
+      cost += tmp;
+    }
+  }
+  return 0.5f * cost;
+}
+
 static inline void dot_add(const DS_FLOAT *const W, const DS_FLOAT *const x,
                            const DS_FLOAT *const b, DS_FLOAT *const out,
                            const size_t n, const size_t m) {
@@ -801,7 +813,16 @@ DS_backprop_network_cost(DS_Backprop *const backprop,
             ->activations[backprop->network->num_layers - 1],
         y, len_output);
   }
-  return 1.f / (DS_FLOAT)labelled_input->count * cost;
+  DS_FLOAT regularization_cost = 0;
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    const size_t n = backprop->network->layer_sizes[l + 1];
+    const size_t m = backprop->network->layer_sizes[l];
+    const DS_FLOAT *const w = backprop->network->weights[l];
+    regularization_cost +=
+        l2_regularization_cost(w, n, m); // TODO: Let user choose type
+  }
+  return 1.f / (DS_FLOAT)labelled_input->count *
+         (cost + backprop->regularization_param * regularization_cost);
 }
 
 static inline DS_FLOAT last_output_error_s(const DS_FLOAT a, const DS_FLOAT z,
