@@ -25,8 +25,8 @@
 #define SCALING 20
 #define WIN_HEIGHT (SCALING * PNG_WIDTH)
 #define WIN_WIDTH WIN_HEIGHT
-#define TARGET_FPS 30
-#define MIN_PIXEL_AFTER_RESIZE 1
+#define TARGET_FPS 60
+#define DRAW_THICKNESS 40
 #define MOUSE_POSITION_SIZE 4
 
 static_assert(NUM_INPUTS * SCALING * SCALING == WIN_HEIGHT * WIN_WIDTH,
@@ -185,7 +185,7 @@ void crop_image_to_drawing_area(Image *img) {
     bounds.height = bounds.height - bounds.y +
                     1; // NOTE: Convert from coordinate to actual height
 
-    const int padding = DS_MIN(img->height, img->width) / 15;
+    const int padding = DS_MIN(img->height, img->width) / 8;
     bounds.x = (bounds.x > padding) ? (bounds.x - padding) : 0;
     bounds.y = (bounds.y > padding) ? (bounds.y - padding) : 0;
     bounds.width = ((bounds.x + bounds.width + padding) < img->width)
@@ -228,52 +228,85 @@ Pixels load_pixels(Image *const img) {
 
 void unload_pixels(Pixels pixels) { DS_FREE(pixels.data); }
 
+void draw_text_centered_x(const char *text, const int y, const int font_size,
+                          Color color) {
+  const int text_len = MeasureText(text, font_size);
+  DrawText(text, (WIN_WIDTH - text_len) / 2, y, font_size, color);
+}
+
 void run_gui(void) {
   SetConfigFlags(FLAG_MSAA_4X_HINT);
   InitWindow(WIN_WIDTH, WIN_HEIGHT, "Ditect");
   SetTargetFPS(TARGET_FPS);
-  float thickness = MIN_PIXEL_AFTER_RESIZE * SCALING;
+  const float thickness = DRAW_THICKNESS;
   Vector2 mouse_positions[MOUSE_POSITION_SIZE] = {0};
   size_t number_of_lines = 0;
   bool predicted = false;
   RenderTexture2D number_drawing_texture = // NOTE: Needed to extract pixels
       LoadRenderTexture(WIN_WIDTH, WIN_HEIGHT);
+  bool clear = false;
+  char out_text[MAX_OUTPUT_LABEL_STRLEN + 256] = {0};
+  const Rectangle draw_boundary = {
+      .x = (float)WIN_WIDTH / 6.f,
+      .y = (float)WIN_HEIGHT / 6.f,
+      .width = (float)WIN_WIDTH - 2.f * draw_boundary.x,
+      .height = (float)WIN_HEIGHT - 2.f * draw_boundary.y};
 
   while (!WindowShouldClose() && !IsKeyPressed(KEY_Q)) {
+    if (IsKeyPressed(KEY_R))
+      clear = true;
+    else
+      clear = false;
 
+    // --- DRAW NUMBER -- //
     BeginTextureMode(number_drawing_texture);
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+    if (clear)
+      ClearBackground(BLACK);
+    else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+      // Draw the number on the texture
       if (predicted) {
         ClearBackground(BLACK);
+        // TODO: Clean up rendering and resetting of out text
+        out_text[0] = 0;
         predicted = false;
       }
       const Vector2 current_position = GetMousePosition();
-      number_of_lines++;
-      if (number_of_lines > MOUSE_POSITION_SIZE) {
-        if (MOUSE_POSITION_SIZE > 1)
-          memmove(&mouse_positions[0], &mouse_positions[1],
-                  (MOUSE_POSITION_SIZE - 1) * sizeof(current_position));
-        number_of_lines = MOUSE_POSITION_SIZE;
+      if (CheckCollisionPointRec(current_position, draw_boundary)) {
+        number_of_lines++;
+        if (number_of_lines > MOUSE_POSITION_SIZE) {
+          if (MOUSE_POSITION_SIZE > 1)
+            memmove(&mouse_positions[0], &mouse_positions[1],
+                    (MOUSE_POSITION_SIZE - 1) * sizeof(current_position));
+          number_of_lines = MOUSE_POSITION_SIZE;
+        }
+        memcpy(&mouse_positions[number_of_lines - 1], &current_position,
+               sizeof(current_position));
+        DrawSplineBasis(mouse_positions, number_of_lines, thickness, WHITE);
       }
-      memcpy(&mouse_positions[number_of_lines - 1], &current_position,
-             sizeof(current_position));
-      DrawSplineBasis(mouse_positions, number_of_lines, thickness, WHITE);
     } else {
       number_of_lines = 0;
     }
+    EndTextureMode();
+    // --- END DRAW NUMBER -- //
 
-    if (IsKeyPressed(KEY_R)) {
+    BeginDrawing();
+    if (clear) {
       ClearBackground(BLACK);
+      out_text[0] = 0;
     }
 
+    DrawTextureRec(number_drawing_texture.texture,
+                   (Rectangle){0, 0, WIN_WIDTH, -WIN_HEIGHT}, (Vector2){0, 0},
+                   WHITE);
+
     if (IsKeyPressed(KEY_P)) {
+      out_text[0] = 0;
       predicted = true;
 
-      DS_Network *network = DS_network_load(TRAINED_NETWORK_PATH);
+      DS_Network *const network = DS_network_load(TRAINED_NETWORK_PATH);
 
       Image img = LoadImageFromTexture(number_drawing_texture.texture);
-      Pixels pixels = load_pixels(&img);
-      print_pixels(&pixels);
+      const Pixels pixels = load_pixels(&img);
       UnloadImage(img);
 
       DS_ASSERT((size_t)pixels.width * (size_t)pixels.height ==
@@ -282,23 +315,26 @@ void run_gui(void) {
 
       char prediction[MAX_OUTPUT_LABEL_STRLEN + 1] = {0};
       DS_FLOAT prob = DS_network_predict(network, pixels.data, prediction);
-      char out_text[MAX_OUTPUT_LABEL_STRLEN + 256] = "It's a ";
-
-      strncat(out_text, prediction, MAX_OUTPUT_LABEL_STRLEN + 255);
-
-      DrawText(out_text, 190, 20, 50, WHITE);
+      strncat(out_text, "It's a ", sizeof(out_text) - 1 - strlen(out_text));
+      strncat(out_text, prediction, sizeof(out_text) - 1 - strlen(out_text));
 
       DS_PRINTF("Predicted %s with %.1f percent.\n", prediction, prob * 100);
 
       unload_pixels(pixels);
       DS_network_free(network);
     }
-    EndTextureMode();
+    if (*out_text != 0)
+      draw_text_centered_x(out_text, 20, 50, WHITE);
+    DrawRectangleRoundedLines(draw_boundary, 0.025, 1, 4, DARKBLUE);
 
-    BeginDrawing();
-    DrawTextureRec(number_drawing_texture.texture,
-                   (Rectangle){0, 0, WIN_WIDTH, -WIN_HEIGHT}, (Vector2){0, 0},
-                   WHITE);
+    const int info_text_size = 18;
+    const int info_text_y =
+        draw_boundary.y + draw_boundary.height + draw_boundary.y / 6.f;
+    draw_text_centered_x(
+        "Draw a number in the rectangle and press P to predict.", info_text_y,
+        info_text_size, WHITE);
+    draw_text_centered_x("Press R to reset drawing.",
+                         info_text_y + info_text_size, info_text_size, WHITE);
     EndDrawing();
   }
   UnloadRenderTexture(number_drawing_texture);
