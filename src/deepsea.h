@@ -32,6 +32,9 @@
 
 #define MAX_OUTPUT_LABEL_STRLEN 0xFF
 
+#define DS_MAX(a, b) (a > b ? a : b)
+#define DS_MIN(a, b) (a < b ? a : b)
+
 typedef struct DS_Network DS_Network;
 
 typedef struct DS_Backprop DS_Backprop;

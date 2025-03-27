@@ -5,6 +5,4 @@ mnist/
 build/
 src/HandmadeMath.h
 compile_commands.json
-to_predict.png
-to_predict_big.png
 .cache/
