@@ -139,9 +139,12 @@ class Network(object):
 
     def feedforward(self, a):
         """Return the output of the network if ``a`` is input."""
+        layers = [(a, a)]
         for b, w in zip(self.biases, self.weights):
-            a = sigmoid(np.dot(w, a) + b)
-        return a
+            input = np.dot(w, a) + b
+            a = sigmoid(input)
+            layers.append((input, a))
+        return a, layers
 
     def SGD(
         self,
@@ -356,7 +359,10 @@ def sigmoid_prime(z):
 
 def main() -> None:
     print("---- FEEDFORWARD ----")
-    network = Network(BIASES, WEIGHTS)
+    sizes = [w.shape[1] for w in WEIGHTS] + [WEIGHTS[-1].shape[0]]
+    network = Network(sizes)
+    network.biases = BIASES
+    network.weights = WEIGHTS
     input = np.array([[0.1, 0.2]]).T
     _, layers = network.feedforward(input)
     for i, (inp, a) in enumerate(layers, start=1):
@@ -367,17 +373,17 @@ def main() -> None:
     a = 0.3
     z = 0.5
     y = 0.3
-    o = network.cost.delta(a, y, z)
+    o = network.cost.delta(z, a, y)
     print(f"Last cost: {o}")
     a = 0.8
     z = 0.3
     y = 0.1
-    o = network.cost.delta(a, y, z)
+    o = network.cost.delta(z, a, y)
     print(f"Last cost: {o}")
     a = 0.7
     z = 0.8
     y = 0.9
-    o = network.cost.delta(a, y, z)
+    o = network.cost.delta(z, a, y)
     print(f"Last cost: {o}")
 
     print("----------------------")
@@ -394,13 +400,17 @@ def main() -> None:
     xs = [np.array([[0.3, 0.2]]).T, np.array([[0.4, 0.5]]).T]
     ys = [np.array([[0.1, -0.2]]).T, np.array([[-0.3, 0.7]]).T]
     mini_batch = list(zip(xs, ys))
-    network = Network(BIASES, WEIGHTS)
+    network = Network(sizes)
+    network.biases = BIASES
+    network.weights = WEIGHTS
     eta = 0.8
-    network.update_mini_batch(mini_batch, eta)
+    lamd = 5.0
+    total_training = 4
+    network.update_mini_batch(mini_batch, eta, lamd, total_training)
     for i, (bias, weight) in enumerate(zip(network.biases, network.weights), start=1):
         print(f"Bias {i}: {bias.T}")
         print(f"Weight {i}: {weight}")
-    network.update_mini_batch(mini_batch, eta)
+    network.update_mini_batch(mini_batch, eta, lamd, total_training)
     for i, (bias, weight) in enumerate(zip(network.biases, network.weights), start=1):
         print(f"Bias {i}: {bias.T}")
         print(f"Weight {i}: {weight}")

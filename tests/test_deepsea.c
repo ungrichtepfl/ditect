@@ -364,7 +364,7 @@ void test_network_feedforward(void) {
   DS_network_free(network);
 }
 
-void test_network_backprop_last_error(void) {
+void test_backprop_last_error_quadratic(void) {
   DS_FLOAT a = 0.3;
   DS_FLOAT z = 0.5;
   DS_FLOAT y = 0.3;
@@ -408,7 +408,7 @@ void check_backprop_segfauls(const DS_Backprop *const backprop) {
 }
 
 // TODO: Create tests for all different cost functions.
-void test_backprop_create(void) {
+void test_backprop_create_quadratic(void) {
   size_t num_layers = 4;
   size_t sizes[4] = {2, 5, 3};
   char **labels = NULL;
@@ -420,7 +420,7 @@ void test_backprop_create(void) {
   DS_backprop_free(backprop);
 }
 
-void test_backprop_create_from_network(void) {
+void test_backprop_create_from_network_quadratic(void) {
   DS_Backprop *backprop =
       DS_backprop_create_from_network(create_test_network(), DS_QUADRATIC, 0.f);
   check_backprop_segfauls(backprop);
@@ -428,7 +428,7 @@ void test_backprop_create_from_network(void) {
   DS_backprop_free(backprop);
 }
 
-void test_network_backprop_error_sums_single_input(void) {
+void test_backprop_error_sums_single_input_quadratic(void) {
   DS_Backprop *backprop =
       DS_backprop_create_from_network(create_test_network(), DS_QUADRATIC, 0.f);
   DS_FLOAT learning_rate = 1;
@@ -451,7 +451,8 @@ void test_network_backprop_error_sums_single_input(void) {
   DS_FLOAT *error_weights[NUM_LAYERS - 1] = {&error_weight_1[0],
                                              &error_weight_2[0]};
 
-  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate, labelled_inputs.count);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate,
+                         labelled_inputs.count);
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     size_t n = backprop->network->layer_sizes[l + 1];
@@ -470,7 +471,7 @@ void test_network_backprop_error_sums_single_input(void) {
   DS_backprop_free(backprop);
 }
 
-void test_network_backprop_double_input(void) {
+void test_backprop_double_input_quadratic(void) {
   DS_Backprop *backprop =
       DS_backprop_create_from_network(create_test_network(), DS_QUADRATIC, 0.f);
   DS_FLOAT learning_rate = 0.8;
@@ -495,7 +496,8 @@ void test_network_backprop_double_input(void) {
   DS_Labelled_Inputs labelled_inputs = {
       .inputs = xs, .labels = ys, .count = num_training};
 
-  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate, labelled_inputs.count);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate,
+                         labelled_inputs.count);
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     size_t n = backprop->network->layer_sizes[l + 1];
@@ -514,7 +516,7 @@ void test_network_backprop_double_input(void) {
   DS_backprop_free(backprop);
 }
 
-void test_network_backprop_double_input_twice(void) {
+void test_backprop_double_input_twice_quadratic(void) {
   DS_Backprop *backprop =
       DS_backprop_create_from_network(create_test_network(), DS_QUADRATIC, 0.f);
   DS_FLOAT learning_rate = 0.8;
@@ -539,8 +541,189 @@ void test_network_backprop_double_input_twice(void) {
   DS_FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
   DS_FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
 
-  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate, labelled_inputs.count);
-  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate, labelled_inputs.count);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate,
+                         labelled_inputs.count);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate,
+                         labelled_inputs.count);
+
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    size_t n = backprop->network->layer_sizes[l + 1];
+    size_t m = backprop->network->layer_sizes[l];
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < m; ++j)
+        SEE_assert_eqf(backprop->network->weights[l][IDX(i, j, m)],
+                       weights[l][IDX(i, j, m)],
+                       "Weight l=%lu, index i=%lu, j=%lu", l, i, j);
+
+      SEE_assert_eqf(backprop->network->biases[l][i], biases[l][i],
+                     "Bias l=%lu, i=%lu", l, i);
+    }
+  }
+
+  DS_backprop_free(backprop);
+}
+
+void test_backprop_create_cross_entropy(void) {
+  size_t num_layers = 4;
+  size_t sizes[4] = {2, 5, 3};
+  char **labels = NULL;
+  DS_Backprop *backprop =
+      DS_backprop_create(sizes, num_layers, labels, DS_CROSS_ENTROPY, 1.5f);
+  check_backprop_segfauls(backprop);
+  check_random_network(DS_backprop_network(backprop), num_layers, sizes,
+                       labels);
+  DS_backprop_free(backprop);
+}
+
+void test_backprop_create_from_network_cross_entropy(void) {
+  DS_Backprop *backprop = DS_backprop_create_from_network(
+      create_test_network(), DS_CROSS_ENTROPY, 1.5f);
+  check_backprop_segfauls(backprop);
+  check_network_correctness(DS_backprop_network(backprop));
+  DS_backprop_free(backprop);
+}
+
+void test_backprop_last_error_cross_entropy(void) {
+  DS_FLOAT a = 0.3;
+  DS_FLOAT z = 0.5;
+  DS_FLOAT y = 0.3;
+  SEE_assert_eqf(last_output_error_cross_entropy(a, z, y), 0.,
+                 "Last output error: No error.");
+
+  a = 0.8;
+  z = 0.3;
+  y = 0.1;
+  SEE_assert_eqf(last_output_error_cross_entropy(a, z, y), 0.7,
+                 "Last output error: Positive error.");
+  a = 0.7;
+  z = 0.8;
+  y = 0.9;
+  SEE_assert_eqf(last_output_error_cross_entropy(a, z, y), -0.2,
+                 "Last output error: Negative error.");
+}
+
+void test_backprop_error_sums_single_input_cross_entropy(void) {
+  DS_Backprop *backprop = DS_backprop_create_from_network(
+      create_test_network(), DS_CROSS_ENTROPY, 1.5f);
+  DS_FLOAT learning_rate = 1;
+  size_t num_training = 1;
+  DS_FLOAT x[LAYER_1] = {0.2, 0.1};
+  DS_FLOAT y[LAYER_1] = {0.5, -0.3};
+  DS_FLOAT *xs[1] = {&x[0]};
+  DS_FLOAT *ys[1] = {&y[0]};
+  DS_Labelled_Inputs labelled_inputs = {
+      .inputs = xs, .labels = ys, .count = num_training};
+
+  DS_FLOAT error_bias_1[LAYER_2] = {0.11594623, 0.08274819, 0.05003871};
+  DS_FLOAT error_bias_2[LAYER_3] = {0.2778866, 0.99776401};
+  DS_FLOAT error_weight_1[LAYER_1 * LAYER_2] = {
+      0.02318925, 0.01159462, 0.01654964, 0.00827482, 0.01000774, 0.00500387};
+  DS_FLOAT error_weight_2[LAYER_2 * LAYER_3] = {
+      0.14865348, 0.15962988, 0.17034843, 0.53374682, 0.57315807, 0.61164348};
+
+  DS_FLOAT *error_biases[NUM_LAYERS - 1] = {&error_bias_1[0], &error_bias_2[0]};
+  DS_FLOAT *error_weights[NUM_LAYERS - 1] = {&error_weight_1[0],
+                                             &error_weight_2[0]};
+
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate,
+                         labelled_inputs.count);
+
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    size_t n = backprop->network->layer_sizes[l + 1];
+    size_t m = backprop->network->layer_sizes[l];
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < m; ++j)
+        SEE_assert_eqf(backprop->weight_error_sums[l][IDX(i, j, m)],
+                       error_weights[l][IDX(i, j, m)],
+                       "Weight errors l=%lu, i=%lu, j=%lu", l, i, j);
+
+      SEE_assert_eqf(backprop->bias_error_sums[l][i], error_biases[l][i],
+                     "Bias error l=%lu, i=%lu", l, i);
+    }
+  }
+
+  DS_backprop_free(backprop);
+}
+
+void test_backprop_double_input_cross_entropy(void) {
+  DS_Backprop *backprop = DS_backprop_create_from_network(
+      create_test_network(), DS_CROSS_ENTROPY, 5.f);
+  DS_FLOAT learning_rate = 0.8;
+  size_t num_training = 2;
+  size_t total_training_set_size = 4;
+
+  DS_FLOAT x1[LAYER_1] = {0.3, 0.2};
+  DS_FLOAT x2[LAYER_1] = {0.4, 0.5};
+  DS_FLOAT y1[LAYER_1] = {0.1, -0.2};
+  DS_FLOAT y2[LAYER_1] = {-0.3, 0.7};
+  DS_FLOAT *xs[2] = {&x1[0], &x2[0]};
+  DS_FLOAT *ys[2] = {&y1[0], &y2[0]};
+  DS_FLOAT bias_1[LAYER_2] = {-0.0319745, 0.09862043, 0.22918786};
+  DS_FLOAT bias_2[LAYER_3] = {-0.30878415, 0.13894275};
+  DS_FLOAT weight_1[LAYER_1 * LAYER_2] = {-0.04604884, -0.04576438,
+                                          -0.03551769, -0.03558738,
+                                          -0.02497719, -0.02536306};
+  DS_FLOAT weight_2[LAYER_2 * LAYER_3] = {-0.39199325, -0.43477817,
+                                          -0.47507493, -0.19585852,
+                                          -0.21359551, -0.23069459};
+
+  DS_FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
+  DS_FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
+
+  DS_Labelled_Inputs labelled_inputs = {
+      .inputs = xs, .labels = ys, .count = num_training};
+
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate,
+                         total_training_set_size);
+
+  for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
+    size_t n = backprop->network->layer_sizes[l + 1];
+    size_t m = backprop->network->layer_sizes[l];
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < m; ++j)
+        SEE_assert_eqf(backprop->network->weights[l][IDX(i, j, m)],
+                       weights[l][IDX(i, j, m)],
+                       "Weight l=%lu, index i=%lu, j=%lu", l, i, j);
+
+      SEE_assert_eqf(backprop->network->biases[l][i], biases[l][i],
+                     "Bias l=%lu, i=%lu", l, i);
+    }
+  }
+
+  DS_backprop_free(backprop);
+}
+
+void test_backprop_double_input_twice_cross_entropy(void) {
+  DS_Backprop *backprop = DS_backprop_create_from_network(
+      create_test_network(), DS_CROSS_ENTROPY, 5.f);
+  DS_FLOAT learning_rate = 0.8;
+  size_t num_training = 2;
+  size_t total_training_set_size = 4;
+
+  DS_FLOAT x1[LAYER_1] = {0.3, 0.2};
+  DS_FLOAT x2[LAYER_1] = {0.4, 0.5};
+  DS_FLOAT y1[LAYER_1] = {0.1, -0.2};
+  DS_FLOAT y2[LAYER_1] = {-0.3, 0.7};
+  DS_FLOAT *xs[2] = {&x1[0], &x2[0]};
+  DS_FLOAT *ys[2] = {&y1[0], &y2[0]};
+  DS_Labelled_Inputs labelled_inputs = {
+      .inputs = xs, .labels = ys, .count = num_training};
+
+  DS_FLOAT bias_1[LAYER_2] = {0.00501916, 0.1394909, 0.27330267};
+  DS_FLOAT bias_2[LAYER_3] = {-0.60607192, -0.02236153};
+  DS_FLOAT weight_1[LAYER_1 * LAYER_2] = {0.01285226, 0.01266121, 0.01421624,
+                                          0.01403938, 0.01535709, 0.01519092};
+  DS_FLOAT weight_2[LAYER_2 * LAYER_3] = {-0.14351378, -0.15383656,
+                                          -0.16410926, -0.07889149,
+                                          -0.08426314, -0.08960161};
+
+  DS_FLOAT *biases[NUM_LAYERS - 1] = {&bias_1[0], &bias_2[0]};
+  DS_FLOAT *weights[NUM_LAYERS - 1] = {&weight_1[0], &weight_2[0]};
+
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate,
+                         total_training_set_size);
+  DS_backprop_learn_once(backprop, &labelled_inputs, learning_rate,
+                         total_training_set_size);
 
   for (size_t l = 0; l < backprop->network->num_layers - 1; ++l) {
     size_t n = backprop->network->layer_sizes[l + 1];
@@ -567,9 +750,15 @@ SEE_RUN_TESTS(test_sigmoid_single, test_sigmoid_multi,
               test_create_test_network, test_network_eq,
               test_create_test_network_owned, test_check_two_files,
               test_save_network_with_labels, test_save_network_without_labels,
-              test_network_feedforward, test_backprop_create,
-              test_backprop_create_from_network,
-              test_network_backprop_last_error,
-              test_network_backprop_error_sums_single_input,
-              test_network_backprop_double_input,
-              test_network_backprop_double_input_twice)
+              test_network_feedforward, test_backprop_create_quadratic,
+              test_backprop_create_from_network_quadratic,
+              test_backprop_last_error_quadratic,
+              test_backprop_error_sums_single_input_quadratic,
+              test_backprop_double_input_quadratic,
+              test_backprop_double_input_twice_quadratic,
+              test_backprop_create_cross_entropy,
+              test_backprop_create_from_network_cross_entropy,
+              test_backprop_last_error_cross_entropy,
+              test_backprop_error_sums_single_input_cross_entropy,
+              test_backprop_double_input_cross_entropy,
+              test_backprop_double_input_twice_cross_entropy)
