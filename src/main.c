@@ -12,6 +12,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(__EMSCRIPTEN__) || defined(__wasm__) || defined(__wasm32__) ||     \
+    defined(__wasm64__)
+#define WASM 1
+#else
+#define WASM 0
+#endif
+
 #define NUM_LAYERS 3
 #define PNG_WIDTH 28
 #define NUM_INPUTS (PNG_WIDTH * PNG_WIDTH)
@@ -34,6 +41,66 @@
 
 static_assert(NUM_INPUTS * SCALING * SCALING == WIN_HEIGHT * WIN_WIDTH,
               "Scaling is wrong");
+
+#if WASM
+
+#include <stdatomic.h>
+atomic_int_fast8_t mouse_down = 0;
+atomic_int_fast32_t mouse_x = 0;
+atomic_int_fast32_t mouse_y = 0;
+
+void send_mouse_button_down(int32_t x, int32_t y) {
+  mouse_x = x;
+  mouse_y = y;
+  mouse_down = 1;
+}
+
+void send_mouse_button_released(void) { mouse_down = 0; }
+
+atomic_int_fast8_t space_pressed = 0;
+void send_space_pressed(void) { space_pressed = 1; }
+
+atomic_int_fast8_t rkey_pressed = 0;
+void send_rkey_pressed(void) { rkey_pressed = 1; }
+#endif
+
+bool is_mouse_down(void) {
+#if WASM
+  return mouse_down > 0;
+#else
+  return IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+#endif
+}
+
+bool is_space_pressed(void) {
+  bool pressed = IsKeyPressed(KEY_SPACE);
+#if WASM
+  if (space_pressed > 0) {
+    space_pressed = 0; // NOTE: Reset
+    pressed = true;
+  }
+#endif
+  return pressed;
+}
+
+bool is_rkey_pressed(void) {
+  bool pressed = IsKeyPressed(KEY_R);
+#if WASM
+  if (rkey_pressed > 0) {
+    rkey_pressed = 0; // NOTE: Reset
+    pressed = true;
+  }
+#endif
+  return pressed;
+}
+
+Vector2 get_mouse_position(void) {
+#if WASM
+  return (Vector2){.x = (float)mouse_x, .y = (float)mouse_y};
+#else
+  return GetMousePosition();
+#endif
+}
 
 void train(const char *const data_path) {
   DS_PRINTF("Start training. May take a while.\n");
@@ -137,9 +204,12 @@ void run_gui(void) {
       .height = (float)WIN_HEIGHT - 2.f * draw_boundary.y};
 
   Font font = LoadFontEx(FONT_FILE_PATH, 512, NULL, 0);
-
+#if WASM
+  while (!WindowShouldClose()) {
+#else
   while (!WindowShouldClose() && !IsKeyPressed(KEY_Q)) {
-    if (IsKeyPressed(KEY_R))
+#endif
+    if (is_rkey_pressed())
       clear = true;
     else
       clear = false;
@@ -148,7 +218,7 @@ void run_gui(void) {
     BeginTextureMode(number_drawing_texture);
     if (clear)
       ClearBackground(BLACK);
-    else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+    else if (is_mouse_down()) {
       // Draw the number on the texture
       if (predicted) {
         ClearBackground(BLACK);
@@ -156,7 +226,7 @@ void run_gui(void) {
         out_text[0] = 0;
         predicted = false;
       }
-      const Vector2 current_position = GetMousePosition();
+      const Vector2 current_position = get_mouse_position();
       if (CheckCollisionPointRec(current_position, draw_boundary)) {
         number_of_lines++;
         if (number_of_lines > MOUSE_POSITION_SIZE) {
@@ -185,7 +255,7 @@ void run_gui(void) {
                    (Rectangle){0, 0, WIN_WIDTH, -WIN_HEIGHT}, (Vector2){0, 0},
                    WHITE);
 
-    if (IsKeyPressed(KEY_SPACE)) {
+    if (is_space_pressed()) {
       out_text[0] = 0;
       predicted = true;
 
@@ -222,9 +292,11 @@ void run_gui(void) {
                          info_text_y, info_text_size, WHITE);
     draw_text_centered_x(font, "Press R to reset the drawing.",
                          info_text_y + info_text_size, info_text_size, WHITE);
+#if !WASM
     draw_text_centered_x(font, "Press Q to quit.",
                          info_text_y + 2 * info_text_size, info_text_size,
                          WHITE);
+#endif
     EndDrawing();
   }
   UnloadFont(font);
