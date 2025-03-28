@@ -969,7 +969,7 @@ void DS_print_pixels_bw(const DS_PixelsBW *const pixels) {
     DS_PRINTF("│\n");
 
     DS_PRINTF("│ ");
-    for (size_t i = 0; i < pixels->height; ++i) {
+    for (size_t i = 0; i < pixels->width; ++i) {
       DS_PRINTF("%3.d ", (int)(pixels->data[i + pixels->width * j] * 255.f));
     }
     DS_PRINTF("│\n");
