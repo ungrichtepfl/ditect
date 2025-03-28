@@ -124,37 +124,30 @@ file_list_to_labelled_inputs_error:
   return NULL;
 }
 
+DS_PixelsBW DS_PNG_load_pixels_bw(const DS_PNG_Input *const png_input) {
+  DS_ASSERT(png_input->type == DS_PNG_Gray, "PNG must be of type gray.");
+  const size_t total_bytes =
+      sizeof(*png_input->data) * png_input->width * png_input->height;
+
+  DS_PixelsBW pixels = {0};
+  pixels.data = DS_MALLOC(total_bytes);
+  DS_ASSERT(pixels.data, "Could not create pixels, out of memory");
+  // NOTE: Pixels have the same memory layout as a loaded PNG
+  memcpy(pixels.data, png_input->data, total_bytes);
+  pixels.height = png_input->height;
+  pixels.width = png_input->width;
+  return pixels;
+}
+
 void DS_PNG_input_print(const DS_PNG_Input *const png_input) {
   switch (png_input->type) {
   case DS_PNG_Gray: {
-
-    DS_PRINTF("╷");
-    for (size_t i = 0; i < png_input->width * 4; ++i)
-      DS_PRINTF("─");
-    DS_PRINTF("─╷\n");
-
-    for (size_t j = 0; j < png_input->height; ++j) {
-      DS_PRINTF("│ ");
-      for (size_t i = 0; i < png_input->width; ++i) {
-        DS_PRINTF("%3.d ", 0);
-      }
-      DS_PRINTF("│\n");
-
-      DS_PRINTF("│ ");
-      for (size_t i = 0; i < png_input->height; ++i) {
-        DS_PRINTF("%3.d ", (int)(png_input->data[i + png_input->width * j] *
-                                 MAX_PNG_GRAY_VALUE));
-      }
-      DS_PRINTF("│\n");
-    }
-
-    DS_PRINTF("╵");
-    for (size_t i = 0; i < png_input->width * 4; ++i)
-      DS_PRINTF("─");
-    DS_PRINTF("─╵\n");
+    DS_PixelsBW pixels = DS_PNG_load_pixels_bw(png_input);
+    DS_print_pixels_bw(&pixels);
+    DS_unload_pixels(pixels);
   } break;
   default:
-    assert(false && "Not implemented");
+    DS_ASSERT(false, "Not implemented");
   }
 }
 

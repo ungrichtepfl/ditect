@@ -25,4 +25,6 @@ void DS_PNG_input_print(const DS_PNG_Input *const png_input);
 
 void DS_PNG_input_free(DS_PNG_Input *const png_input);
 
+DS_PixelsBW DS_PNG_load_pixels_bw(const DS_PNG_Input *const png_input);
+
 #endif // LOAD_PNG_H
