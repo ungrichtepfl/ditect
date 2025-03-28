@@ -13,10 +13,13 @@ _EXCLUDE :=
 EXCLUDE  := $(_EXCLUDE:%=$(SRC_DIR)/%) # Prepending SRC_DIR path
 
 EXE := $(BIN_DIR)/ditect
+WEB_EXE := $(BIN_DIR)/ditect.js
 SRC := $(filter-out $(EXCLUDE), $(wildcard $(SRC_DIR)/*.c))
 OBJ := $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 TESTS := $(wildcard $(TEST_DIR)/*.c)
 TEST_EXE := $(TESTS:$(TEST_DIR)/%.c=$(BIN_DIR)/%)
+
+EMCC := emcc
 
 # If RELEASE var is set to 1
 ifeq ($(RELEASE),1)
@@ -33,10 +36,12 @@ else
 	LD_RAYLIB=$(shell pkg-config --libs "raylib")
 endif
 
-CPPFLAGS := -I$(INC_DIR) -MMD -MP
-CFLAGS   := -Wall -Werror -Wextra -Wpedantic $(OPTFLAG) $(C_RAYLIB)
-LDFLAGS  := -L$(LIB_DIR) $(OPTFLAG)
-LDLIBS   := -lm $(LD_RAYLIB) -lpng
+CPPFLAGS   := -I$(INC_DIR) -MMD -MP
+CFLAGS     := -Wall -Werror -Wextra -Wpedantic $(OPTFLAG) $(C_RAYLIB)
+FLAGS_WEB  := -Wall -Werror -Wextra -Wpedantic -Os -lpng -lm -I ./raylib-5.0_wasm/include/ -L./raylib-5.0_wasm/lib -l:libraylib.a -DDS_FLOAT=float # NOTE: Too little memory with double
+EMCC_FLAGS := -sUSE_GLFW=3 -sUSE_LIBPNG -sASYNCIFY -sMODULARIZE=1 -sEXPORT_NAME=createDitect -sWASM=1 -sEXPORTED_FUNCTIONS=_run_gui --embed-file ./Lato-Regular.ttf --embed-file ./trained_network.txt -sINITIAL_HEAP=256mb
+LDFLAGS    := -L$(LIB_DIR) $(OPTFLAG)
+LDLIBS     := -lm $(LD_RAYLIB) -lpng
 
 define DEPENDABLE_VAR
 .PHONY: phony
@@ -94,6 +99,17 @@ run-tests: tests
 		echo "\033[0;34mRunning test file \"$$exe\":\033[0m"; \
 		./$$exe; \
 	done
+
+.PHONY: web
+web: $(SRC) | $(BIN_DIR)
+	$(EMCC) $(FLAGS_WEB) -o $(WEB_EXE) $^ $(EMCC_FLAGS)
+	cp $(WEB_EXE) $(WEB_EXE:$(BIN_DIR)/%.js=$(BIN_DIR)/%.wasm) .
+
+
+.PHONY: web-run
+web-run: web
+	@echo "Open index.html"
+	python3 -m http.server 3000
 
 -include $(OBJ:.o=.d)
 -include $(TEST_EXE:=.d)

@@ -6,3 +6,5 @@ build/
 src/HandmadeMath.h
 compile_commands.json
 .cache/
+ditect.js
+ditect.wasm
