@@ -791,7 +791,7 @@ DS_backprop_create_from_network(DS_Network *const network,
     backprop->last_output_error = &last_output_error_cross_entropy;
   } break;
   default: {
-    DS_ASSERT(true, "Unreachable");
+    DS_ASSERT(false, "Unreachable");
   } break;
   }
   backprop->regularization_param = regularization_param;
