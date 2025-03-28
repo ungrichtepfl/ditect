@@ -48,7 +48,7 @@ endef
 
 .PHONY: all
 all: $(EXE)
-	@echo 'Run "$^" to start game.'
+	@echo 'Run "./$^" to start game.'
 
 # Make RELEASE depedable
 $(eval $(call DEPENDABLE_VAR,RELEASE))
