@@ -27,7 +27,7 @@
 #define WIN_HEIGHT (SCALING * PNG_WIDTH)
 #define WIN_WIDTH WIN_HEIGHT
 #define TARGET_FPS 60
-#define DRAW_THICKNESS 40
+#define DRAW_THICKNESS 35
 #define MOUSE_POSITION_SIZE 4
 #define CROPPING_PADDING (WIN_HEIGHT / 8)
 
@@ -181,7 +181,7 @@ void run_gui(void) {
                    (Rectangle){0, 0, WIN_WIDTH, -WIN_HEIGHT}, (Vector2){0, 0},
                    WHITE);
 
-    if (IsKeyPressed(KEY_P)) {
+    if (IsKeyPressed(KEY_SPACE)) {
       out_text[0] = 0;
       predicted = true;
 
@@ -213,7 +213,7 @@ void run_gui(void) {
     const int info_text_size = 20;
     const int info_text_y =
         draw_boundary.y + draw_boundary.height + draw_boundary.y / 6.f;
-    draw_text_centered_x("Draw a number in the rectangle and press P.",
+    draw_text_centered_x("Draw a number in the rectangle and press ENTER.",
                          info_text_y, info_text_size, WHITE);
     draw_text_centered_x("Press R to reset the drawing.",
                          info_text_y + info_text_size, info_text_size, WHITE);
