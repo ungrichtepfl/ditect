@@ -407,7 +407,6 @@ void check_backprop_segfauls(const DS_Backprop *const backprop) {
   }
 }
 
-// TODO: Create tests for all different cost functions.
 void test_backprop_create_quadratic(void) {
   size_t num_layers = 4;
   size_t sizes[4] = {2, 5, 3};
