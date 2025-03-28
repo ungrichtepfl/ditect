@@ -2,6 +2,7 @@
 #include "deepsea_file.h"
 #include "deepsea_png.h"
 #include "deepsea_raylib.h"
+#include "font.h"
 #include "limits.h"
 #include "parser.h"
 #include <assert.h>
@@ -23,6 +24,7 @@
 #define LEARNING_RATE 0.5f
 #define TRAINED_NETWORK_PATH "trained_network.txt"
 
+#define FONT_FILE_PATH "./Lato-Regular.ttf"
 #define SCALING 20
 #define WIN_HEIGHT (SCALING * PNG_WIDTH)
 #define WIN_WIDTH WIN_HEIGHT
@@ -110,10 +112,11 @@ void predict(const char *const data_path) {
   DS_network_free(network);
 }
 
-void draw_text_centered_x(const char *text, const int y, const int font_size,
-                          Color color) {
-  const int text_len = MeasureText(text, font_size);
-  DrawText(text, (WIN_WIDTH - text_len) / 2, y, font_size, color);
+void draw_text_centered_x(Font font, const char *text, const int y,
+                          const int font_size, Color color) {
+  const Vector2 text_len = MeasureTextEx(font, text, font_size, 0);
+  DrawTextEx(font, text, (Vector2){(WIN_WIDTH - text_len.x) / 2, y}, font_size,
+             0, color);
 }
 
 void run_gui(void) {
@@ -133,6 +136,8 @@ void run_gui(void) {
       .y = (float)WIN_HEIGHT / 6.f,
       .width = (float)WIN_WIDTH - 2.f * draw_boundary.x,
       .height = (float)WIN_HEIGHT - 2.f * draw_boundary.y};
+
+  Font font = LoadFontEx(FONT_FILE_PATH, 512, NULL, 0);
 
   while (!WindowShouldClose() && !IsKeyPressed(KEY_Q)) {
     if (IsKeyPressed(KEY_R))
@@ -207,20 +212,23 @@ void run_gui(void) {
       DS_network_free(network);
     }
     if (*out_text != 0)
-      draw_text_centered_x(out_text, 20, 50, WHITE);
+      draw_text_centered_x(font, out_text, 20, 50, WHITE);
     DrawRectangleRoundedLines(draw_boundary, 0.025, 1, 4, DARKBLUE);
 
-    const int info_text_size = 20;
+    const int info_text_size = 22;
     const int info_text_y =
         draw_boundary.y + draw_boundary.height + draw_boundary.y / 6.f;
-    draw_text_centered_x("Draw a number in the rectangle and press ENTER.",
+    draw_text_centered_x(font,
+                         "Draw a number in the rectangle and press ENTER.",
                          info_text_y, info_text_size, WHITE);
-    draw_text_centered_x("Press R to reset the drawing.",
+    draw_text_centered_x(font, "Press R to reset the drawing.",
                          info_text_y + info_text_size, info_text_size, WHITE);
-    draw_text_centered_x("Press Q to quit.", info_text_y + 2 * info_text_size,
-                         info_text_size, WHITE);
+    draw_text_centered_x(font, "Press Q to quit.",
+                         info_text_y + 2 * info_text_size, info_text_size,
+                         WHITE);
     EndDrawing();
   }
+  UnloadFont(font);
   UnloadRenderTexture(number_drawing_texture);
   CloseWindow();
 }
