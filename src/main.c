@@ -210,14 +210,15 @@ void run_gui(void) {
       draw_text_centered_x(out_text, 20, 50, WHITE);
     DrawRectangleRoundedLines(draw_boundary, 0.025, 1, 4, DARKBLUE);
 
-    const int info_text_size = 18;
+    const int info_text_size = 20;
     const int info_text_y =
         draw_boundary.y + draw_boundary.height + draw_boundary.y / 6.f;
-    draw_text_centered_x(
-        "Draw a number in the rectangle and press P to predict.", info_text_y,
-        info_text_size, WHITE);
-    draw_text_centered_x("Press R to reset drawing.",
+    draw_text_centered_x("Draw a number in the rectangle and press P.",
+                         info_text_y, info_text_size, WHITE);
+    draw_text_centered_x("Press R to reset the drawing.",
                          info_text_y + info_text_size, info_text_size, WHITE);
+    draw_text_centered_x("Press Q to quit.", info_text_y + 2 * info_text_size,
+                         info_text_size, WHITE);
     EndDrawing();
   }
   UnloadRenderTexture(number_drawing_texture);
