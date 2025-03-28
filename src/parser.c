@@ -62,9 +62,9 @@ void command_line_parse(CommandLineArgs *command_line, int argc, char *argv[]) {
           "digit and the network tries to predict it.\n"
           "It is also possible to train and test the network using the "
           "different OPTIONS.\n\n");
-      printf("  -t, --train=FILE    Train the network with the data in "
+      printf("  -T, --train=FILE    Train the network with the data in "
              "FILE\n");
-      printf("  -T, --test=FILE     Test the network with the data in "
+      printf("  -t, --test=FILE     Test the network with the data in "
              "FILE\n");
       printf("  -h, --help          Display this help and exit\n");
       exit(0);
