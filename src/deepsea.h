@@ -2,6 +2,7 @@
 #define DEEPSEE_H
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 #ifndef DS_FLOAT
 #define DS_FLOAT double
@@ -139,5 +140,15 @@ DS_Network const *DS_backprop_network(const DS_Backprop *const backprop);
 DS_FLOAT
 DS_backprop_network_cost(DS_Backprop *const backprop,
                          const DS_Labelled_Inputs *const labelled_input);
+
+typedef struct {
+  size_t height;
+  size_t width;
+  DS_FLOAT *data;
+} DS_PixelsBW;
+
+void DS_print_pixels_bw(const DS_PixelsBW *const pixels);
+
+void DS_unload_pixels(DS_PixelsBW pixels);
 
 #endif // DEEPSEE_H

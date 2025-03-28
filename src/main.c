@@ -1,6 +1,7 @@
 #include "deepsea.h"
 #include "deepsea_file.h"
 #include "deepsea_png.h"
+#include "deepsea_raylib.h"
 #include "limits.h"
 #include "parser.h"
 #include <assert.h>
@@ -28,6 +29,7 @@
 #define TARGET_FPS 60
 #define DRAW_THICKNESS 40
 #define MOUSE_POSITION_SIZE 4
+#define CROPPING_PADDING (WIN_HEIGHT / 8)
 
 static_assert(NUM_INPUTS * SCALING * SCALING == WIN_HEIGHT * WIN_WIDTH,
               "Scaling is wrong");
@@ -108,126 +110,6 @@ void predict(const char *const data_path) {
   DS_network_free(network);
 }
 
-/// Converts the data of the raylib image to the same form as when the training
-/// data png is loaded
-void convert_img_to_training_data_structure(Image *const img) {
-  ImageColorGrayscale(img);
-  // NOTE: The following is needed such that the data is in the same order as
-  // when a PNG is loaded
-  ImageFlipHorizontal(img);
-  ImageRotate(img, 180);
-
-  ImageResize(img, PNG_WIDTH,
-              PNG_WIDTH); // NOTE: Resize at the end, otherhise there will be
-                          // some weird issue with the image placing
-}
-
-typedef struct {
-  size_t height;
-  size_t width;
-  DS_FLOAT *data;
-} Pixels;
-
-void print_pixels(const Pixels *const pixels) {
-
-  DS_PRINTF("╷");
-  for (size_t i = 0; i < pixels->width * 4; ++i)
-    DS_PRINTF("─");
-  DS_PRINTF("─╷\n");
-
-  for (size_t j = 0; j < pixels->height; ++j) {
-    DS_PRINTF("│ ");
-    for (size_t i = 0; i < pixels->width; ++i) {
-      DS_PRINTF("%3.d ", 0);
-    }
-    DS_PRINTF("│\n");
-
-    DS_PRINTF("│ ");
-    for (size_t i = 0; i < pixels->height; ++i) {
-      DS_PRINTF("%3.d ", (int)(pixels->data[i + pixels->width * j] * 255.f));
-    }
-    DS_PRINTF("│\n");
-  }
-
-  DS_PRINTF("╵");
-  for (size_t i = 0; i < pixels->width * 4; ++i)
-    DS_PRINTF("─");
-  DS_PRINTF("─╵\n");
-}
-
-void crop_image_to_drawing_area(Image *img) {
-
-  Color *const colors = LoadImageColors(*img);
-
-  Rectangle bounds = {
-      .x = img->width, .y = img->height, .width = 0, .height = 0};
-  // Find the smallest rectangle that contains all non-white pixels
-  for (int y = 0; y < img->height; ++y) {
-    for (int x = 0; x < img->width; ++x) {
-      const Color color = colors[y * img->width + x];
-      if (color.r > 0 || color.g > 0 ||
-          color.b > 0) { // NOTE: Assuming black background
-        if (x < bounds.x)
-          bounds.x = x;
-        if (y < bounds.y)
-          bounds.y = y;
-        if (x > bounds.width)
-          bounds.width = x; // NOTE: At this moment width is a coordinate
-        if (y > bounds.height)
-          bounds.height = y; // NOTE: At this moment height is a coordinate
-      }
-    }
-  }
-
-  if (bounds.width > bounds.x && bounds.height > bounds.y) {
-    bounds.width = bounds.width - bounds.x +
-                   1; // NOTE: Convert from coordinate to actual width
-    bounds.height = bounds.height - bounds.y +
-                    1; // NOTE: Convert from coordinate to actual height
-
-    const int padding = DS_MIN(img->height, img->width) / 8;
-    bounds.x = (bounds.x > padding) ? (bounds.x - padding) : 0;
-    bounds.y = (bounds.y > padding) ? (bounds.y - padding) : 0;
-    bounds.width = ((bounds.x + bounds.width + padding) < img->width)
-                       ? (bounds.width + 2 * padding)
-                       : (img->width - bounds.x);
-    bounds.height = ((bounds.y + bounds.height + padding) < img->height)
-                        ? (bounds.height + 2 * padding)
-                        : (img->height - bounds.y);
-
-    ImageCrop(img, bounds);
-  }
-  UnloadImageColors(colors);
-}
-
-/// Does all the transformation such that the pixel data is ready for the neural
-/// network
-Pixels load_pixels(Image *const img) {
-  Pixels pixels = {0};
-  pixels.data = DS_MALLOC(sizeof(*pixels.data) * img->height * img->width);
-  DS_ASSERT(pixels.data, "Could not load pixels. Out of memory.");
-
-  Image converted_image = ImageCopy(*img);
-  crop_image_to_drawing_area(&converted_image);
-  convert_img_to_training_data_structure(&converted_image);
-
-  pixels.width = converted_image.width;
-  pixels.height = converted_image.height;
-  Color *const colors = LoadImageColors(converted_image);
-  for (int i = 0; i < converted_image.height * converted_image.width; ++i)
-    pixels.data[i] =
-        (DS_FLOAT)colors[i]
-            .r // NOTE: On an grayscale image all rgb values are the same
-        / 255.f;
-
-  UnloadImageColors(colors);
-  UnloadImage(converted_image);
-
-  return pixels;
-}
-
-void unload_pixels(Pixels pixels) { DS_FREE(pixels.data); }
-
 void draw_text_centered_x(const char *text, const int y, const int font_size,
                           Color color) {
   const int text_len = MeasureText(text, font_size);
@@ -306,7 +188,8 @@ void run_gui(void) {
       DS_Network *const network = DS_network_load(TRAINED_NETWORK_PATH);
 
       Image img = LoadImageFromTexture(number_drawing_texture.texture);
-      const Pixels pixels = load_pixels(&img);
+      const DS_PixelsBW pixels = DS_RAYLIB_load_pixels_bw_from_image(
+          &img, PNG_WIDTH, PNG_WIDTH, CROPPING_PADDING);
       UnloadImage(img);
 
       DS_ASSERT((size_t)pixels.width * (size_t)pixels.height ==
@@ -320,7 +203,7 @@ void run_gui(void) {
 
       DS_PRINTF("Predicted %s with %.1f percent.\n", prediction, prob * 100);
 
-      unload_pixels(pixels);
+      DS_unload_pixels(pixels);
       DS_network_free(network);
     }
     if (*out_text != 0)

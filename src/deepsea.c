@@ -3,7 +3,6 @@
 #include <math.h>
 #include <stdarg.h>
 #include <stddef.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -954,3 +953,32 @@ void DS_backprop_learn_once(DS_Backprop *const backprop,
 DS_Network const *DS_backprop_network(const DS_Backprop *const backprop) {
   return backprop->network;
 }
+
+void DS_print_pixels_bw(const DS_PixelsBW *const pixels) {
+
+  DS_PRINTF("╷");
+  for (size_t i = 0; i < pixels->width * 4; ++i)
+    DS_PRINTF("─");
+  DS_PRINTF("─╷\n");
+
+  for (size_t j = 0; j < pixels->height; ++j) {
+    DS_PRINTF("│ ");
+    for (size_t i = 0; i < pixels->width; ++i) {
+      DS_PRINTF("%3.d ", 0);
+    }
+    DS_PRINTF("│\n");
+
+    DS_PRINTF("│ ");
+    for (size_t i = 0; i < pixels->height; ++i) {
+      DS_PRINTF("%3.d ", (int)(pixels->data[i + pixels->width * j] * 255.f));
+    }
+    DS_PRINTF("│\n");
+  }
+
+  DS_PRINTF("╵");
+  for (size_t i = 0; i < pixels->width * 4; ++i)
+    DS_PRINTF("─");
+  DS_PRINTF("─╵\n");
+}
+
+void DS_unload_pixels(DS_PixelsBW pixels) { DS_FREE(pixels.data); }
