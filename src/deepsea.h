@@ -141,6 +141,9 @@ DS_FLOAT
 DS_backprop_network_cost(DS_Backprop *const backprop,
                          const DS_Labelled_Inputs *const labelled_input);
 
+/// Represents black and white pixels. The data is stored in a row-major order.
+/// First entry is the top-left pixel, the last entry is the bottom-right pixel.
+/// The data is stored as DS_FLOATs in the range \[0, 1\].
 typedef struct {
   size_t height;
   size_t width;
