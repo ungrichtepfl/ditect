@@ -982,3 +982,7 @@ void DS_print_pixels_bw(const DS_PixelsBW *const pixels) {
 }
 
 void DS_unload_pixels(DS_PixelsBW pixels) { DS_FREE(pixels.data); }
+
+bool DS_empty_pixels(const DS_PixelsBW *const pixels) {
+  return pixels->data == NULL || pixels->width == 0 || pixels->height == 0;
+}

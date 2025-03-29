@@ -38,6 +38,7 @@
 #define DRAW_THICKNESS 35
 #define MOUSE_POSITION_SIZE 4
 #define CROPPING_PADDING (WIN_HEIGHT / 8)
+#define BACKGROUND_COLOR BLACK
 
 static_assert(NUM_INPUTS * SCALING * SCALING == WIN_HEIGHT * WIN_WIDTH,
               "Scaling is wrong");
@@ -193,8 +194,13 @@ void run_gui(void) {
   Vector2 mouse_positions[MOUSE_POSITION_SIZE] = {0};
   size_t number_of_lines = 0;
   bool predicted = false;
+
   RenderTexture2D number_drawing_texture = // NOTE: Needed to extract pixels
       LoadRenderTexture(WIN_WIDTH, WIN_HEIGHT);
+  BeginTextureMode(number_drawing_texture);
+  ClearBackground(BACKGROUND_COLOR);
+  EndTextureMode();
+
   bool clear = false;
   char out_text[MAX_OUTPUT_LABEL_STRLEN + 256] = {0};
   const Rectangle draw_boundary = {
@@ -217,11 +223,11 @@ void run_gui(void) {
     // --- DRAW NUMBER -- //
     BeginTextureMode(number_drawing_texture);
     if (clear)
-      ClearBackground(BLACK);
+      ClearBackground(BACKGROUND_COLOR);
     else if (is_mouse_down()) {
       // Draw the number on the texture
       if (predicted) {
-        ClearBackground(BLACK);
+        ClearBackground(BACKGROUND_COLOR);
         // TODO: Clean up rendering and resetting of out text
         out_text[0] = 0;
         predicted = false;
@@ -247,7 +253,7 @@ void run_gui(void) {
 
     BeginDrawing();
     if (clear) {
-      ClearBackground(BLACK);
+      ClearBackground(BACKGROUND_COLOR);
       out_text[0] = 0;
     }
 
@@ -263,22 +269,29 @@ void run_gui(void) {
 
       Image img = LoadImageFromTexture(number_drawing_texture.texture);
       const DS_PixelsBW pixels = DS_RAYLIB_load_pixels_bw_from_image(
-          &img, PNG_WIDTH, PNG_WIDTH, CROPPING_PADDING);
+          &img, PNG_WIDTH, PNG_WIDTH, CROPPING_PADDING, BACKGROUND_COLOR);
       UnloadImage(img);
 
-      DS_ASSERT((size_t)pixels.width * (size_t)pixels.height ==
-                    DS_network_input_layer_size(network),
-                "PNG data size is not compatible with network input size.");
+      if (!DS_empty_pixels(&pixels)) {
 
-      char prediction[MAX_OUTPUT_LABEL_STRLEN + 1] = {0};
-      DS_FLOAT prob = DS_network_predict(network, pixels.data, prediction);
-      strncat(out_text, "It's a ", sizeof(out_text) - 1 - strlen(out_text));
-      strncat(out_text, prediction, sizeof(out_text) - 1 - strlen(out_text));
+        DS_ASSERT((size_t)pixels.width * (size_t)pixels.height ==
+                      DS_network_input_layer_size(network),
+                  "PNG data size is not compatible with network input size.");
 
-      DS_PRINTF("Predicted %s with %.1f percent.\n", prediction, prob * 100);
+        char prediction[MAX_OUTPUT_LABEL_STRLEN + 1] = {0};
+        DS_FLOAT prob = DS_network_predict(network, pixels.data, prediction);
+        strncat(out_text, "It's a ", sizeof(out_text) - 1 - strlen(out_text));
+        strncat(out_text, prediction, sizeof(out_text) - 1 - strlen(out_text));
 
-      DS_unload_pixels(pixels);
-      DS_network_free(network);
+        DS_PRINTF("Predicted %s with %.1f percent.\n", prediction, prob * 100);
+
+        DS_unload_pixels(pixels);
+        DS_network_free(network);
+      } else {
+        strncat(out_text, "Nothing to predict!",
+                sizeof(out_text) - 1 - strlen(out_text));
+        DS_PRINTF("Nothing to predict\n");
+      }
     }
     if (*out_text != 0)
       draw_text_centered_x(font, out_text, 20, 50, WHITE);
@@ -288,7 +301,7 @@ void run_gui(void) {
     const int info_text_y =
         draw_boundary.y + draw_boundary.height + draw_boundary.y / 6.f;
     draw_text_centered_x(font,
-                         "Draw a number in the rectangle and press ENTER.",
+                         "Draw a number in the rectangle and press SPACE.",
                          info_text_y, info_text_size, WHITE);
     draw_text_centered_x(font, "Press R to reset the drawing.",
                          info_text_y + info_text_size, info_text_size, WHITE);
