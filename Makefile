@@ -40,7 +40,7 @@ CPPFLAGS   := -I$(INC_DIR) -MMD -MP
 CFLAGS     := -Wall -Werror -Wextra -Wpedantic $(OPTFLAG) $(C_RAYLIB)
 FLAGS_WEB  := -Wall -Werror -Wextra -Wpedantic -Oz -lpng -lm -I ./raylib-5.0_wasm/include/ -L./raylib-5.0_wasm/lib -l:libraylib.a
 FLAGS_WEB  := $(FLAGS_WEB) -DDS_FLOAT=float # NOTE: Too little memory with double
-EMCC_FLAGS := -sUSE_GLFW=3 -sUSE_LIBPNG -sASYNCIFY -sMODULARIZE=1 -sWASM=1 -sINITIAL_HEAP=256mb
+EMCC_FLAGS := -sUSE_GLFW=3 -sUSE_LIBPNG -sASYNCIFY -sMODULARIZE=1 -sEXPORT_ES6=1 -sWASM=1 -sINITIAL_HEAP=256mb
 EMCC_FLAGS := $(EMCC_FLAGS) --embed-file ./Lato-Regular.ttf --embed-file ./trained_network.txt
 EMCC_FLAGS := $(EMCC_FLAGS) -sEXPORT_NAME=createDitect
 EMCC_FLAGS := $(EMCC_FLAGS) -sEXPORTED_FUNCTIONS=_run_gui,_send_mouse_button_down,_send_mouse_button_released,_send_space_pressed,_send_rkey_pressed

@@ -76,9 +76,8 @@
     <button id="reset"> Reset Drawing </button>
   </div>
 
-  <script src=ditect.js>
-  </script>
-  <script>
+  <script type="module">
+    import createDitect from "./ditect.js";
     var Module = {
       print: (function () {
         var element = document.getElementById('output');
